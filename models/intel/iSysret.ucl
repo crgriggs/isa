@@ -1,0 +1,105 @@
+MODEL intelSysret
+
+typedef exitType : enum{inProgram, endProgram};
+
+
+CONST
+
+Module sysret
+
+INPUT
+
+VAR
+exit      : exitType;
+state     : states;
+cs_l      : TRUTH;
+efer_lma  : TRUTH;
+efer_sce  : TRUTH;
+canonical : TRUTH;
+isOpSize64: TRUTH;
+GP        : TRUTH;
+UD        : TRUTH;
+RIP       : BITVEC[64];
+RCX       : BITVEC[64];
+CPL       : TERM;
+CS        : BITVEC[64]
+
+CONST
+
+DEFINE
+CS_TYPE := CS # [11:8];
+CS_DPL := CS # [14:13];
+CS_P := CS # [15:15];
+CS_L := CS # [21:21];
+CS_D := CS # [22:22];
+CS_G := CS # [23:23];
+ECX := RCX # [31:0];
+
+
+UD := (CS_L = 0) | (efer_lma = false) | (efer_sce = false);
+GP := (CPL > 0) | canonical;
+
+RIP # [31:0] := ECX (*Not sure how Intel handles assigning a 32 bit register to a 64, are the upper bits cleared or kept the same, regardless ECX should constitute the lower 32*)
+RIP # [63:32] := case
+	isOpSize64 = true :  RCX # [63:32];
+	default : RIP # [63:32];
+esac;
+
+(*RFLAGS ← (R11 & 3C7FD7H) | 2; Not sure how to handle this. I think R11 is a register but it doesn't say in the manual *)
+
+CS # [15:0] := CS # [15:0] || 3;
+
+(*CS.Base = 0*)
+CS # [31:24] := CS # [31:24] && 0;
+CS # [7:0] := CS # [7:0] && 0;
+CS # [63:48] := CS # [63:48] && 0;
+
+(*CS.Limit = 0xFFFFF*)
+CS # [19:16] := CS # [19:16] && 16;
+CS # [47:32] := CS # [47:32] && 65535; 
+
+(*CS.Type = 11, Can I assign a number to a bitvector*)
+
+(*CS_S := 1, this doesn't exist according to any description of a CS*)
+
+CS_DPL := 3
+
+CS_L := case
+	isOpSize64 = true : 1;
+	default : 0;
+esac;
+
+CS_D := case
+	isOpSize64 = true : 0;
+	default : 1;
+
+CS_G := 1;
+(*CPL is set to 3 here but how does that affect GP definition above*)
+ASSIGN
+
+(*----- CONTROL MODULE -----*)
+CONTROL
+
+EXTVAR
+
+STOREVAR
+initSysretBug : TRUTH;
+
+VAR
+sysretBug : TRUTH;
+
+CONST
+
+DEFINE
+sysretBug := (sysret.exit = endProgram) =>
+				(sysret.CPL = 3);
+EXEC
+initSysretBug := sysretBug;
+print(sysret.CPL);
+decide(initSysretBug);
+simulate(1);
+decide(sysretBug);
+simulate(1);
+decide(sysretBug);
+simulate(1);
+decide(sysretBug);
