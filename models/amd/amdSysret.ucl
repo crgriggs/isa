@@ -14,8 +14,8 @@ CS_I : BITVEC[80];
 SS_I : BITVEC[80];
 RIP_I : BITVEC[64];
 RFLAGS_I : BITVEC[64];
-R11_I : BITVEC[64];
-RCX_I : BITVEC[64];
+r11 : BITVEC[64];
+rcx : BITVEC[64];
 CPL_I : BITVEC[3];
 
 MODULE sysret
@@ -29,10 +29,6 @@ ss : BITVEC[80];
 (* System registers *)
 rip : BITVEC[64];
 rflags : BITVEC[64];
-
-(* General purpose registers *)
-r11 : BITVEC[64];
-rcx : BITVEC[64];
 
 (* Exit status *)
 exitStatus : exitMode;
@@ -86,7 +82,7 @@ ud_fault := case
 esac;
 
 gp_fault := case
-	(!!((PE = 0x1 > 0) | CANONICAL = 0x0 : true;
+	(!!((PE = 0x1) & (rflags # [17:17] = 0x0))) | cpl > 0: true;
 	default : false;
 esac;
 
@@ -99,20 +95,16 @@ next[exitStatus] := case
 	default : normal;
 esac;
 
-init[r11] := R11_I;
-init[rcx] := RCX_I;
-
 init[rip] := RIP_I;
 next[rip] := case
-	(64_BIT = b1) & next[exitStatus] = normal: RCX;
-	(64_BIT = b0) & next[exitStatus] = normal: 0x00000000 @ ECX;
+	next[exitStatus] = normal: RCX;
 	default : rip;
 esac;
 
 
 init[rflags] := RFLAGS_I;
 next[rflags] := case
-	next[exitStatus] = normal : (r11 && 0x3C7FD7) || 0x3;
+	next[exitStatus] = normal : r11;
 	default : rflags;
 esac;
 
