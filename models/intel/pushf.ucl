@@ -1,0 +1,101 @@
+MODEL x86
+
+typedef exitMode : enum {gp, normal};
+
+CONST
+(*Control Register 0 variables*)
+PE : BITVEC[1];
+VME : BITVEC[1];
+
+
+cpl : BITVEC[3];
+(*0-16bit, 1-32bit, >1-64bit*)
+OPSIZE : BITVEC[2];
+
+64bitmode : BITVEC[1];
+
+RFLAGS_I : BITVEC[64];
+
+
+
+
+(*** MODULE ***)
+MODULE Syscall
+INPUT
+
+VAR
+
+(* System registers *)
+rflags : BITVEC[64];
+
+(* Exit status *)
+exitStatus : exitMode;
+
+
+CONST
+DEFINE
+(* Single-bit values *)
+b0 := 0x0 # [0:0];
+b1 := 0x1 # [0:0];
+
+
+vm = rflags # [20:20];
+iopl = rflags # [13:12];
+vip = rflags # [20:20];
+
+16bit := case
+	OPSIZE = 0x0 : true;
+	default : false;
+esac;
+
+32bit := case
+	OPSIZE = 0x1 : true;
+	default : false;
+esac;
+
+64bit := case
+    OPSIZE > 0x1 : true;
+	default : false;
+esac;
+
+gp_fault := case
+	(!!((PE = b0) | (PE = b1 & ((vm = b0) | ((vm = b1) & (iople = 0x3))))) & !!64bitmode : true;
+	default : false;
+esac;
+
+
+
+
+ASSIGN
+(* Define how state variables are updated. *)
+
+init[exitStatus] := normal;
+next[exitStatus] := case
+	gp_fault : gp;
+	default : normal;
+esac;
+
+
+init[rflags] := RFLAGS_I;
+next[rflags] := case
+	next[exitStatus] = normal: RFLAGS_S;
+	default : rflags;
+esac
+
+
+
+(*** CONTROL ***)
+CONTROL
+EXTVAR
+STOREVAR
+VAR
+
+
+CONST
+DEFINE
+phi := Syscall.cpl = 0;
+
+EXEC
+initialize;
+simulate(1);
+decide(phi);

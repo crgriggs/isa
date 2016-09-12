@@ -7,12 +7,6 @@ CONST
 PE : BITVEC[1];
 VME : BITVEC[1];
 
-(*RFLAGS undefined variables*)
-VIP_U : BITVEC[1];
-VIF_U : BITVEC[1];
-VM_U : BITVEC[1];
-IOPL_U : BITVEC[1];
-IF_U : BITVEC[1];
 
 cpl : BITVEC[3];
 16_BIT : BITVEC[1];
