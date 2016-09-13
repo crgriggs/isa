@@ -42,9 +42,9 @@ b0 := 0x0 # [0:0];
 b1 := 0x1 # [0:0];
 
 
-vm = rflags # [20:20];
-iopl = rflags # [13:12];
-vip = rflags # [20:20];
+vm := rflags # [20:20];
+iopl := rflags # [13:12];
+vip := rflags # [20:20];
 
 16bit := case
 	OPSIZE = 0x0 : true;
@@ -87,9 +87,8 @@ next[rflags] := case
 	PE = b1 & vm = 0 & iopl < cpl & cpl = 0x3 & PVI = 0x1: rflags # [18:0] @ b1 @ rflags # [63:20];
 	PE = b1 & vm = 1 & iopl = 0x3 : rflags # [8:0] @ b1 @ rflags # [63:10];
 	PE = b1 & vm = 1 & iopl < 0x3 & vip = b0 & VME = b1 : rflags # [18:0] @ b1 @ rflags # [63:20];
-
 	default : rflags;
-esac
+esac;
 
 
 
@@ -102,9 +101,7 @@ VAR
 
 CONST
 DEFINE
-phi := Syscall.cpl = 0;
 
 EXEC
 initialize;
 simulate(1);
-decide(phi);

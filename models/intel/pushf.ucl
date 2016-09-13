@@ -39,9 +39,9 @@ b0 := 0x0 # [0:0];
 b1 := 0x1 # [0:0];
 
 
-vm = rflags # [20:20];
-iopl = rflags # [13:12];
-vip = rflags # [20:20];
+vm := rflags # [20:20];
+iopl := rflags # [13:12];
+vip := rflags # [20:20];
 
 16bit := case
 	OPSIZE = 0x0 : true;
@@ -59,7 +59,7 @@ esac;
 esac;
 
 gp_fault := case
-	(!!((PE = b0) | (PE = b1 & ((vm = b0) | ((vm = b1) & (iople = 0x3))))) & !!64bitmode : true;
+	(~((PE = b0) | (PE = b1 & ((vm = b0) | ((vm = b1) & (iopl = 0x3)))))) & ~(64bitmode = b1) : true;
 	default : false;
 esac;
 
@@ -78,9 +78,12 @@ esac;
 
 init[rflags] := RFLAGS_I;
 next[rflags] := case
-	next[exitStatus] = normal: RFLAGS_S;
+	((PE = b0) | (PE = b1 & ((vm = b0) | ((vm = b1) & (iopl = 0x3))))) & 32bit : rflags; (*32bit push*)
+	((PE = b0) | (PE = b1 & ((vm = b0) | ((vm = b1) & (iopl = 0x3))))) & ~32bit : rflags && 0x00FCFFFF; (*32bit push*)
+	(~((PE = b0) | (PE = b1 & ((vm = b0) | ((vm = b1) & (iopl = 0x3)))))) & (64bitmode = b1) & 64bit : rflags && 0x0000000000FCFFFF	;(*64bit push*)
+	(~((PE = b0) | (PE = b1 & ((vm = b0) | ((vm = b1) & (iopl = 0x3)))))) & (64bitmode = b1) & ~64bit : rflags; (*32bit push*)
 	default : rflags;
-esac
+esac;
 
 
 
@@ -93,9 +96,7 @@ VAR
 
 CONST
 DEFINE
-phi := Syscall.cpl = 0;
 
 EXEC
 initialize;
 simulate(1);
-decide(phi);

@@ -1,6 +1,6 @@
 MODEL amdSysret
 
-typedef exitStatus : enum{ud, gp, normal};
+typedef exitMode : enum{ud, gp, normal};
 
 
 CONST
@@ -82,7 +82,7 @@ ud_fault := case
 esac;
 
 gp_fault := case
-	(!!((PE = 0x1) & (rflags # [17:17] = 0x0))) | cpl > 0: true;
+	(~((PE = b1) & (rflags # [17:17] = 0x0))) | cpl > 0: true;
 	default : false;
 esac;
 
@@ -97,7 +97,7 @@ esac;
 
 init[rip] := RIP_I;
 next[rip] := case
-	next[exitStatus] = normal: RCX;
+	next[exitStatus] = normal: rcx;
 	default : rip;
 esac;
 

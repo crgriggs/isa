@@ -1,4 +1,4 @@
-MODEL x86
+MODEL AMDSTI
 
 typedef exitMode : enum {gp, normal};
 
@@ -23,7 +23,7 @@ RFLAGS_I : BITVEC[64];
 
 
 (*** MODULE ***)
-MODULE Syscall
+MODULE sti
 INPUT
 
 VAR
@@ -42,9 +42,9 @@ b0 := 0x0 # [0:0];
 b1 := 0x1 # [0:0];
 
 
-vm = rflags # [20:20];
-iopl = rflags # [13:12];
-vip = rflags # [20:20];
+vm := rflags # [20:20];
+iopl := rflags # [13:12];
+vip := rflags # [20:20];
 
 16bit := case
 	OPSIZE = 0x0 : true;
@@ -77,7 +77,7 @@ virtual_mode := case
 esac;
 
 gp_fault := case
-	cpl > iopl & (!!(((virtual_mode) & (VME = b1)) | ((protected_mode) & (PVI = 1) & (cpl = 0x3)))) : true;
+	cpl > iopl & (~(((virtual_mode) & (VME = b1)) | ((protected_mode) & (PVI = 1) & (cpl = 0x3)))) : true;
 	cpl > iopl & (((virtual_mode) & (VME = b1)) | ((protected_mode) & (PVI = 1) & (cpl = 0x3))) & vip = b1 : true;	
 	default : false;
 esac;
@@ -101,7 +101,7 @@ next[rflags] := case
 	cpl <= iopl & next[exitStatus] = normal: rflags # [18:0] @ b1 @ rflags # [63:20];
 
 	default : rflags;
-esac
+esac;
 
 
 
@@ -114,9 +114,6 @@ VAR
 
 CONST
 DEFINE
-phi := Syscall.cpl = 0;
 
 EXEC
 initialize;
-simulate(1);
-decide(phi);

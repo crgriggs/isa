@@ -1,24 +1,21 @@
-MODEL x86
+MODEL AMDPUSHF
 
 typedef exitMode : enum {gp, normal};
+typedef operandSize : enum {16bit, 32bit, 64bit};
 
 CONST
 (*Control Register 0 variables*)
 PE : BITVEC[1];
 VME : BITVEC[1];
 
-
 cpl : BITVEC[3];
-(*0-16bit, 1-32bit, >1-64bit*)
-OPSIZE : BITVEC[2];
 
 RFLAGS_I : BITVEC[64];
-
-
+opSize : operandSize;
 
 
 (*** MODULE ***)
-MODULE Syscall
+MODULE pushf
 INPUT
 
 VAR
@@ -31,37 +28,44 @@ exitStatus : exitMode;
 
 
 CONST
+
 DEFINE
 (* Single-bit values *)
 b0 := 0x0 # [0:0];
 b1 := 0x1 # [0:0];
 
 
-vm = rflags # [20:20];
-iopl = rflags # [13:12];
-vip = rflags # [20:20];
+vm := rflags # [20:20];
+iopl := rflags # [13:12];
+vip := rflags # [20:20];
 
-16bit := case
-	OPSIZE = 0x0 : true;
+popf_real := case
+	PE = b0 : true;
 	default : false;
 esac;
 
-32bit := case
-	OPSIZE = 0x1 : true;
+popf_protected := case
+	((PE = b1) & (rflags # [17:17] = b0)) : true;
 	default : false;
 esac;
 
-64bit := case
-    OPSIZE > 0x1 : true;
+popf_virtual := case
+	((PE = b1) & (rflags # [17:17] = b1)) : true;
 	default : false;
 esac;
+
 
 gp_fault := case
-	(!!(PE = b1 & VME = b1)) & iopl < 0x3 & (CR4.VME==0) | !!16bit : true;
+	(~(PE = b1 & VME = b1)) & iopl < 0x3 & (VME = b0) | (opSize != 16bit) : true;
 	default : false;
 esac;
 
 
+(*the naming scheme is unchangedVar_unchangedVar...setVar0_setVar1..._popSize*)
+
+rf0_vm0 := rflags # [15:0] @ b0 @ b0 @ rflags # [63:18];
+rf0 := rflags # [15:0] @ b0 @ rflags # [63:17];
+ifSetWithVif_iopl3 := rflags # [8:0] @ rflags # [19:19] @ rflags # [11:10] @ b1 @ b1 @ rflags # [63:14];
 
 
 ASSIGN
@@ -76,9 +80,12 @@ esac;
 
 init[rflags] := RFLAGS_I;
 next[rflags] := case
-	next[exitStatus] = normal: RFLAGS_S;
+	next[exitStatus] = normal & popf_real: rf0_vm0;
+	next[exitStatus] = normal & popf_protected: rf0;
+	next[exitStatus] = normal & popf_virtual & iopl = 0x3: rf0_vm0;
+	next[exitStatus] = normal & popf_virtual & iopl != 0x3: ifSetWithVif_iopl3;
 	default : rflags;
-esac
+esac;
 
 
 
@@ -91,9 +98,7 @@ VAR
 
 CONST
 DEFINE
-phi := Syscall.cpl = 0;
 
 EXEC
 initialize;
 simulate(1);
-decide(phi);

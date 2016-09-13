@@ -1,4 +1,4 @@
-MODEL x86
+MODEL AMDPOPF
 
 typedef exitMode : enum {gp, normal};
 
@@ -18,7 +18,7 @@ RFLAGS_S : BITVEC[64];
 
 
 (*** MODULE ***)
-MODULE Syscall
+MODULE popf
 INPUT
 
 VAR
@@ -39,11 +39,11 @@ b1 := 0x1 # [0:0];
 
 gp_fault := case
 	((PE = b1) & (rflags # [17:17] = b1)) & (rflags # [13:12] = b1@b1) & ((VME = b1) & (16_BIT = b1)) : true;
-	((PE = b1) & (rflags # [17:17] = b1)) & (rflags # [13:12] = b1@b1) & (!!((VME = b1) & (16_BIT = b1))) &(!!(((RFLAGS_S # [9:9] = b1) & (rflags # [20:20] = b1)) | (RFLAGS_S # [8:8] = b1))) : true;
+	((PE = b1) & (rflags # [17:17] = b1)) & (rflags # [13:12] = b1@b1) & (~((VME = b1) & (16_BIT = b1))) & (~(((RFLAGS_S # [9:9] = b1) & (rflags # [20:20] = b1)) | (RFLAGS_S # [8:8] = b1))) : true;
 	default : false;
 esac;
 
-popf_real : case
+popf_real := case
 	PE = b0 : true;
 	default : false;
 esac;
@@ -55,9 +55,9 @@ popf_protected := case
 	default : false;
 esac;
 
-popf_protected_tt := RFLAGS_S # [8:0] @ RFLAGS_I # [9:9] @ RFLAGS_S # [11:10] @ RFLAGS_I # [13:12] @ RFLAGS_S # [15:14] @ b0 @ rflags # [17:17] @ RFLAGS_S # [18:18] @ rflags # [20:19] @ RFLAGS_S # [63:21];
-popf_protected_tf := RFLAGS_S # [8:0] @ RFLAGS_I # [9:9] @ RFLAGS_S # [15:10] @ b0 @ rflags # [17:17] @ RFLAGS_S # [18:18] @ rflags # [20:19] @ RFLAGS_S # [63:21];
-popf_protected_ft := RFLAGS_S # [11:0] @ RFLAGS_I # [13:12] @ RFLAGS_S # [15:14] @ b0 @ rflags # [17:17] @ RFLAGS_S # [18:18] @ rflags # [20:19] @ RFLAGS_S # [63:21];
+popf_protected_tt := RFLAGS_S # [8:0] @ rflags # [9:9] @ RFLAGS_S # [11:10] @ rflags # [13:12] @ RFLAGS_S # [15:14] @ b0 @ rflags # [17:17] @ RFLAGS_S # [18:18] @ rflags # [20:19] @ RFLAGS_S # [63:21];
+popf_protected_tf := RFLAGS_S # [8:0] @ rflags # [9:9] @ RFLAGS_S # [15:10] @ b0 @ rflags # [17:17] @ RFLAGS_S # [18:18] @ rflags # [20:19] @ RFLAGS_S # [63:21];
+popf_protected_ft := RFLAGS_S # [11:0] @ rflags # [13:12] @ RFLAGS_S # [15:14] @ b0 @ rflags # [17:17] @ RFLAGS_S # [18:18] @ rflags # [20:19] @ RFLAGS_S # [63:21];
 popf_protected_ff := RFLAGS_S # [15:0] @ b0 @ rflags # [17:17] @ RFLAGS_S # [18:18] @ rflags # [20:19] @ RFLAGS_S # [63:21];
 
 popf_virtual := case
@@ -65,12 +65,12 @@ popf_virtual := case
 	default : false;
 esac;
 
-popf_virtual_t := RFLAGS_S # [8:0] @ RFLAGS_I # [9:9] @ RFLAGS_S # [11:10] @ RFLAGS_I # [13:12] @ RFLAGS_S # [15:14] @ b0 @ rflags # [17:17]
+popf_virtual_t := RFLAGS_S # [8:0] @ rflags # [9:9] @ RFLAGS_S # [11:10] @ rflags # [13:12] @ RFLAGS_S # [15:14] @ b0 @ rflags # [63:17];
 
 
 (* 2-byte move (copies lower 16 bits of temp_src to temp_dest, preserving the upper 48 bits of temp_dest*)
 
-popf_virtual_f := RFLAGS_S # [11:0] @ RFLAGS_I # [13:12] @ RFLAGS_S # [15:14] @ b0 @ rflags # [17:17] @ RFLAGS_S # [18:18] @ rflags # [20:19] @ RFLAGS_S # [63:21];
+popf_virtual_f := RFLAGS_S # [11:0] @ rflags # [13:12] @ RFLAGS_S # [15:14] @ b0 @ rflags # [17:17] @ RFLAGS_S # [18:18] @ rflags # [20:19] @ RFLAGS_S # [63:21];
 
 
 ASSIGN
@@ -93,7 +93,7 @@ next[rflags] := case
 	popf_virtual & rflags # [13:12] < 0x3 : popf_virtual_f;
 	popf_virtual & rflags # [13:12] = 0x3 & next[exitStatus] = normal : popf_virtual_t;
 	default : rflags;
-esac
+esac;
 
 
 
@@ -106,9 +106,9 @@ VAR
 
 CONST
 DEFINE
-phi := Syscall.cpl = 0;
+
 
 EXEC
 initialize;
 simulate(1);
-decide(phi);
+
