@@ -39,7 +39,7 @@ b0 := 0x0 # [0:0];
 b1 := 0x1 # [0:0];
 
 
-vm := rflags # [20:20];
+vm := rflags # [17:17];
 iopl := rflags # [13:12];
 vip := rflags # [20:20];
 
