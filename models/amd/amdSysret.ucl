@@ -7,16 +7,20 @@ CONST
 EFERSCE : BITVEC[1];
 64_BIT : BITVEC[1];
 PE : BITVEC[1];
+IS_CANONICAL : PRED[1];
 MSR_STAR_SYSRET_CS : BITVEC[16];
 
 
 CS_I : BITVEC[80];
 SS_I : BITVEC[80];
-RIP_I : BITVEC[64];
+RIP_I : BITVEC[48];
 RFLAGS_I : BITVEC[64];
 r11 : BITVEC[64];
 rcx : BITVEC[64];
-CPL_I : BITVEC[3];
+CPL_I : BITVEC[2];
+
+
+
 
 MODULE sysret
 
@@ -34,8 +38,7 @@ rflags : BITVEC[64];
 exitStatus : exitMode;
 
 (* Current privilege level *)
-cpl : BITVEC[3];
-
+cpl : BITVEC[2];
 
 CONST
 
@@ -44,6 +47,7 @@ DEFINE
 (* Single-bit values *)
 b0 := 0x0 # [0:0];
 b1 := 0x1 # [0:0];
+
 
 (* CS fields *)
 cs_selector_64 := MSR_STAR_SYSRET_CS; (*CS # [79:64]*)
@@ -83,10 +87,12 @@ esac;
 
 gp_fault := case
 	(~((PE = b1) & (rflags # [17:17] = 0x0))) | cpl > 0: true;
+	~isCanonical : true;
 	default : false;
 esac;
 
 ASSIGN
+
 
 init[exitStatus] := normal;
 next[exitStatus] := case
@@ -95,7 +101,7 @@ next[exitStatus] := case
 	default : normal;
 esac;
 
-init[rip] := RIP_I;
+init[rip] := rip_i_can;
 next[rip] := case
 	next[exitStatus] = normal: rcx;
 	default : rip;
@@ -117,7 +123,7 @@ esac;
 
 init[cpl] := CPL_I;
 next[cpl] := case
-	next[exitStatus] = normal : 3;
+	next[exitStatus] = normal : 0x3;
 	default : cpl;
 esac;
 
@@ -134,9 +140,17 @@ STOREVAR
 VAR
 CONST
 DEFINE
-sysretBug := (sysret.exitStatus != normal) =>
+
+(*On non-normal exit final vars must be equal to initial vars*)
+earlyExit := (sysret.exitStatus != normal) =>
+				((sysret.cs = CS_I) & (sysret.ss = SS_I) & (sysret.rflags = RFLAGS_I) & (sysret.rip = RIP_I));
+
+
+sysretBug := (~sysret.exit) =>
 				(sysret.cpl = 3);
+
 EXEC
 initialize;
+print(sysret.rip);
 simulate(1);
-decide(sysretBug);
+print(sysret.rip);

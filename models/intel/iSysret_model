@@ -1,0 +1,21 @@
+MODEL intelSysret
+
+typedef exitMode : enum{ud, gp, normal};
+
+
+CONST
+IA32_EFERLMA : BITVEC[1];
+IA32_EFERSCE : BITVEC[1];
+64_BIT : BITVEC[1];
+IS_CANONICAL : PRED[1];
+MSR_STAR_SYSRET_CS : BITVEC[16];
+
+
+CS_I : BITVEC[80];
+SS_I : BITVEC[80];
+RIP_I : BITVEC[64];
+RFLAGS_I : BITVEC[64];
+r11 : BITVEC[64];
+rcx : BITVEC[64];
+CPL_I : BITVEC[2];
+

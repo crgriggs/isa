@@ -1,0 +1,104 @@
+UCLID
+Copyright (C) 2001-2011 The UCLID Team
+Compiling model x86...
+Compiling module sti...
+Compilation finished for UCLID model x86.
+
+INITIAL STATE:
+
+Boolean State:
+[]
+
+Term State:
+[sti.rflags:=RFLAGS_I
+,]
+
+Func State:
+[]
+
+Pred State:
+[]
+
+Enum State:
+[sti.exitStatus:=normal
+,]
+
+Enum Func State:
+[]
+
+Simulating...
+.. step 1 complete
+At step 1: sti.exitStatus:=ITE(Or(And(And(And((PE=[0:0](0x1[4](ZERO_))),([17:17](RFLAGS_I)=ZERO_)),([13:12](RFLAGS_I)<cpl)),Or((cpl<0x3[4](ZERO_)),(PVI=0x0[4](ZERO_)))),And(And(And((PE=[0:0](0x1[4](ZERO_))),([17:17](RFLAGS_I)=1+(ZERO_))),([13:12](RFLAGS_I)<0x3[4](ZERO_))),Or(([20:20](RFLAGS_I)=[0:0](0x1[4](ZERO_))),(VME=[0:0](0x0[4](ZERO_)))))),gp,normal)
+
+
+**********************************************
+     Decision Procedure 
+**********************************************
+
+**********************************************
+Using heuristic  1
+Ignoring Positive Equality Analysis....
+Using Ackermann's method to eliminate g-function symbols....
+**********************************************
+Stats : Original formula size :<|tnodes|,|Tnodes|> = <53,39>
+Getting function, predicate symbols.....
+Getting the PCEUF from the formula.....
+Initializing function application classes...
+Initial number of fAppClasses is 33
+Final number of fAppClasses is 1
+
+ the function symbols:[PE,PVI,RFLAGS_I,VME,ZERO_,__en_exitMode,cpl]
+
+ the individual variables:[PE,PVI,RFLAGS_I,VME,ZERO_,__en_exitMode,cpl]
+
+ the p function symbols:[]
+Eliminating  uninterpreted g-func/pred symbols Ackermann.....
+Eliminating  uninterpreted p-func symbols Bryant.....
+# of vars  = 7
+# of pvars = 0
+# of gvars = 7
+
+ the p-vars :[]
+
+ the g-vars:[PE,PVI,RFLAGS_I,VME,ZERO_,__en_exitMode,cpl]
+Fraction of p-vars = 0.0
+Stats :  after function elimination  size :<|tnodes|,|Tnodes|> = <53,39>
+Stats :  after predicate elimination  size :<|tnodes|,|Tnodes|> = <53,39>
+# of ITE vars = 0
+The final variable classes :
+{[PE], false, Cardinality = 1}
+{[PVI], false, Cardinality = 1}
+{[RFLAGS_I,cpl], true, Cardinality = 2}
+{[VME], false, Cardinality = 1}
+{[ZERO_], false, Cardinality = 1}
+{[__en_exitMode], true, Cardinality = 1}
+Starting Eager Encoding for Bit-Vector Arithmetic...
+Generating propositional encoding...
+#bits for PE = 1
+#bits for RFLAGS_I = 64
+#bits for cpl = 2
+#bits for PVI = 1
+#bits for VME = 1
+#bits for __en_exitMode = 0 (constant encoding of 5)
+User Time for propositional encoding: 0.000
+
+
+ Overall Bit-Vector Encoding Time
+Encoding Usr Time: 0.000
+Encoding Sys Time: 0.004
+Encoding GC Time: 0.000
+
++++ No Counter-Examples Found : Formula trivially Valid +++
+
+
+
+ Decision Procedure Encoding Time
+Usr Time: 0.004
+Sys Time: 0.004
+GC Time: 0.000
+
+
+ Overall ML Execution Time
+Usr Time: 0.004
+Sys Time: 0.004
+GC Time: 0.000

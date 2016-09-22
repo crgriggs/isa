@@ -13,7 +13,7 @@ RIP_I : BITVEC[64];
 RFLAGS_I : BITVEC[64];
 R11_I : BITVEC[64];
 RCX_I : BITVEC[64];
-CPL_I : BITVEC[3];
+CPL_I : BITVEC[2];
 
 (*** MODULE ***)
 MODULE Syscall
@@ -50,7 +50,7 @@ rcx : BITVEC[64];
 exitStatus : exitMode;
 
 (* Current privilege level *)
-cpl : BITVEC[3];
+cpl : BITVEC[2];
 
 CONST
 DEFINE

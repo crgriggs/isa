@@ -1,0 +1,13 @@
+EXTVAR
+STOREVAR
+VAR
+
+
+CONST
+DEFINE
+
+
+EXEC
+initialize;
+simulate(1);
+

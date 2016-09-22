@@ -1,0 +1,11 @@
+EXTVAR
+STOREVAR
+VAR
+CONST
+DEFINE
+sysretBug := (sysret.exitStatus != normal) =>
+				(sysret.cpl = 3);
+EXEC
+initialize;
+simulate(1);
+decide(sysretBug);
