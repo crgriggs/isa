@@ -19,9 +19,8 @@ RFLAGS_S : BITVEC[64];
 
 
 (*** MODULE ***)
-MODULE Syscall
+MODULE popf
 INPUT
-
 VAR
 
 (* System registers *)
@@ -109,16 +108,23 @@ esac;
 
 (*** CONTROL ***)
 CONTROL
+
 EXTVAR
+
+
 STOREVAR
+
 VAR
 
 
 CONST
 DEFINE
-phi := Syscall.cpl = 0;
+
 
 EXEC
 initialize;
+
+
 simulate(1);
-decide(phi);
+(*decide((cpl != 0) => (RFLAGS_I # [13:12] = popf.rflags # [13:12]));*)
+decide( (RFLAGS_I # [13:12] < 0x3 & RFLAGS_I # [17:17] = 0x1 # [0:0]) => (popf.exitStatus = gp) );

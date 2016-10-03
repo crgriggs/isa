@@ -1,16 +1,15 @@
-(i.e. the contents of the stack between S .top and S .bottom remain the same).
 MODEL stack
 (* type of operations of a Stack *)
 typedef optype : enum{POP, PUSH, NOOP};
 
 CONST
-d0 : TERM;
+d0 : BITVEC[64];
 
 MODULE S
 
 INPUT
 op : optype;
-data : TERM;
+data : BITVEC[64];
 
 VAR
 contents : FUNC[1];
@@ -52,7 +51,7 @@ CONTROL
 
 EXTVAR
 op : optype := NOOP;
-data : TERM := d0;
+data : BITVEC[64] := d0;
 
 STOREVAR
 item : TERM;
