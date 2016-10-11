@@ -65,14 +65,24 @@ esac;
 
 (*the naming scheme is unchangedVar_unchangedVar...setVar0_setVar1..._popSize*)
 
-iopl_16 := RFLAGS_S # [11:0]  @ RFLAGS_I # [13:12] @ RFLAGS_S # [15:14];
-vip_vif_vm_iopl_rf0_32 := RFLAGS_S # [11:0]  @ RFLAGS_I # [13:12] @ RFLAGS_S # [15:14] @ b0 @ rflags # [17:17] @ RFLAGS_S # [18:18] @ rflags # [20:19] @ RFLAGS_S # [31:21] @ rflags # [63:32];
-iopl_if_vif1_16 := RFLAGS_S # [8:0] @ RFLAGS_I # [9:9] @ RFLAGS_S # [11:10] @ RFLAGS_I # [13:12] @ RFLAGS_S # [15:14] @ rflags # [18:16] @ RFLAGS_S # [9:9] @ rflags # [63:16];
-vip_vif_vm_iopl_if_rf0_64 := RFLAGS_S # [8:0] @ RFLAGS_I # [9:9] @ RFLAGS_S # [11:10] @ RFLAGS_I # [13:12] @ RFLAGS_S # [15:14] @ b0 @ rflags # [17:17] @ RFLAGS_S # [18:18] @ rflags # [20:19] @ RFLAGS_S # [63:21];
-vip_vif_vm_iopl_rf0_64 := RFLAGS_S # [11:0] @ RFLAGS_I # [13:12] @ RFLAGS_S # [15:14] @ b0 @ rflags # [17:17] @ RFLAGS_S # [18:18] @ rflags # [20:19] @ RFLAGS_S # [63:21];
-vip_vif_vm_iopl_if_rf0_32 := RFLAGS_S # [8:0] @ RFLAGS_I # [9:9] @ RFLAGS_S # [11:10] @ RFLAGS_I # [13:12] @ RFLAGS_S # [15:14] @ b0 @ rflags # [17:17] @ RFLAGS_S # [18:18] @ rflags # [20:19] @ RFLAGS_S # [31:21] @ rflags # [63:32];
-vip_vif_vm_rf0_64 := RFLAGS_S # [15:0] @ b0 @ rflags # [17:17] @ RFLAGS_S # [18:18] @ rflags # [20:19] @ RFLAGS_S # [63:21];
-vip_vif_vm_rf0_32 := RFLAGS_S # [15:0] @ b0 @ rflags # [17:17] @ RFLAGS_S # [18:18] @ rflags # [20:19] @ RFLAGS_S # [31:21] @ rflags # [63:32];
+iopl_16 := (rflags # [63:16]) @ (RFLAGS_S # [15:14]) @  (rflags # [13:12]) @ (RFLAGS_S # [11:0]);
+
+vip_vif_vm_iopl_rf0_32 := rflags # [63:32] @ (RFLAGS_S # [31:21]) @ (rflags # [20:19]) @ (RFLAGS_S # [18:18]) @ (rflags # [17:17]) @ (b0) @ (RFLAGS_S # [15:14]) @ (rflags # [13:12]) @ (RFLAGS_S # [11:0]);
+
+iopl_if_vif1_16 := (rflags # [63:16]) @ (RFLAGS_S # [9:9]) @ (rflags # [18:16]) @ (RFLAGS_S # [15:14]) @ (rflags # [13:12]) @ (RFLAGS_S # [11:10]) @ (rflags # [9:9]) @ (RFLAGS_S # [8:0]);
+
+vip_vif_vm_iopl_if_rf0_64 := ( RFLAGS_S # [63:21]) @ ( rflags # [20:19] ) @ ( RFLAGS_S # [18:18] ) @ ( rflags # [17:17] ) @ ( b0 ) @ ( RFLAGS_S # [15:14] ) @ ( rflags # [13:12] ) @ ( RFLAGS_S # [11:10] ) @ ( rflags # [9:9] ) @ (RFLAGS_S # [8:0] );
+
+vip_vif_vm_iopl_rf0_64 := ( RFLAGS_S # [63:21]) @ ( rflags # [20:19] ) @ ( RFLAGS_S # [18:18] ) @ ( rflags # [17:17] ) @ ( b0 ) @ ( RFLAGS_S # [15:14] ) @ ( rflags # [13:12] ) @ (RFLAGS_S # [11:0] ) ;
+
+vip_vif_vm_iopl_if_rf0_32 := ( rflags # [63:32]) @ ( RFLAGS_S # [31:21] ) @ ( rflags # [20:19] ) @ ( RFLAGS_S # [18:18] ) @ ( rflags # [17:17] ) @ ( b0 ) @ ( RFLAGS_S # [15:14] ) @ ( rflags # [13:12] ) @ ( RFLAGS_S # [11:10] ) @ ( rflags # [9:9] ) @ (RFLAGS_S # [8:0] ) ;
+
+
+vip_vif_vm_rf0_64 := ( RFLAGS_S # [63:21]) @ ( rflags # [20:19] ) @ ( RFLAGS_S # [18:18] ) @ ( rflags # [17:17] ) @ ( b0 ) @ (RFLAGS_S # [15:0] ) ;
+
+
+vip_vif_vm_rf0_32 := ( rflags # [63:32]) @ ( RFLAGS_S # [31:21] ) @ ( rflags # [20:19] ) @ ( RFLAGS_S # [18:18] ) @ ( rflags # [17:17] ) @ ( b0 ) @ (RFLAGS_S # [15:0] ) ;
+
 
 
 
@@ -88,19 +98,19 @@ esac;
 
 init[rflags] := RFLAGS_I;
 next[rflags] := case
-	vm = b1 & VME = b0 & iopl = 0x3 & 32bit: vip_vif_vm_iopl_rf0_32;
+	next[exitStatus] = normal & vm = b1 & VME = b0 & iopl = 0x3 & 32bit: vip_vif_vm_iopl_rf0_32;
 	vm = b1 & VME = b0 & iopl = 0x3 & ~32bit: iopl_16; 
 	vm = b1 & VME = b1 & iopl < 0x3 & ~32bit & (~(vip = b1 & RFLAGS_S # [9:9] = b1)) : iopl_if_vif1_16;
 	vm = b1 & VME = b1 & iopl = 0x3 & 32bit: vip_vif_vm_iopl_rf0_32;
-	vm = b1 & VME = b1 & iopl = 0x3 & ~32bit: iopl_16;
-	vm = b0 & cpl > 0x0 & 16bit : iopl_16;
+	next[exitStatus] = normal & vm = b1 & VME = b1 & iopl = 0x3 & ~32bit: iopl_16;
+	next[exitStatus] = normal & vm = b0 & cpl > 0x0 & 16bit : iopl_16;
 	vm = b0 & cpl > 0x0 & 64bit & cpl > iopl: vip_vif_vm_iopl_if_rf0_64;
 	vm = b0 & cpl > 0x0 & 64bit & cpl <= iopl: vip_vif_vm_iopl_rf0_64;
 	vm = b0 & cpl > 0x0 & 32bit & cpl > iopl: vip_vif_vm_iopl_if_rf0_32;
 	vm = b0 & cpl > 0x0 & 32bit & cpl <= iopl: vip_vif_vm_iopl_rf0_32;
 	vm = b0 & cpl = 0x0 & 16bit : RFLAGS_S # [15:0] @ rflags # [63:15];
 	vm = b0 & cpl = 0x0 & 64bit : vip_vif_vm_rf0_64;
-	vm = b0 & cpl = 0x0 & 64bit : vip_vif_vm_rf0_32;
+	vm = b0 & cpl = 0x0 & 32bit : vip_vif_vm_rf0_32;
 	default : rflags;
 esac;
 
@@ -123,8 +133,11 @@ DEFINE
 
 EXEC
 initialize;
-
-
 simulate(1);
-(*decide((cpl != 0) => (RFLAGS_I # [13:12] = popf.rflags # [13:12]));*)
+
+(*decide((cpl != 0x0 # [0:0]) => (RFLAGS_I # [13:12] = popf.rflags # [13:12]));*)
+(*The POPF and IRET instructions can modify this field only when operating at a CPL of 0. Volume 3 2.3*)
+
 decide( (RFLAGS_I # [13:12] < 0x3 & RFLAGS_I # [17:17] = 0x1 # [0:0]) => (popf.exitStatus = gp) );
+(*Volume 3 20.2.5 Entering Virtual-8086 Mode
+General-protection exception caused by software interrupt (INT n), IRET, POPF, PUSHF, IN, or OUT when IOPL is less than 3.*)

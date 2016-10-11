@@ -82,11 +82,11 @@ esac;
 
 init[rflags] := RFLAGS_I;
 next[rflags] := case
-	PE = b0: rflags # [8:0] @ b1 @ rflags # [63:10];
-	PE = b1 & vm = 0 & iopl >= cpl : rflags # [8:0] @ b1 @ rflags # [63:10];
-	PE = b1 & vm = 0 & iopl < cpl & cpl = 0x3 & PVI = 0x1: rflags # [18:0] @ b1 @ rflags # [63:20];
-	PE = b1 & vm = 1 & iopl = 0x3 : rflags # [8:0] @ b1 @ rflags # [63:10];
-	PE = b1 & vm = 1 & iopl < 0x3 & vip = b0 & VME = b1 : rflags # [18:0] @ b1 @ rflags # [63:20];
+	PE = b0: ( rflags # [63:10]) @ ( b1 ) @ (rflags # [8:0] ) ;
+	PE = b1 & vm = 0 & iopl >= cpl : ( rflags # [63:10]) @ ( b1 ) @ (rflags # [8:0] ) ;
+	PE = b1 & vm = 0 & iopl < cpl & cpl = 0x3 & PVI = 0x1: ( rflags # [63:20]) @ ( b1 ) @ (rflags # [18:0] ) ;
+	PE = b1 & vm = 1 & iopl = 0x3 : ( rflags # [63:10]) @ ( b1 ) @ (rflags # [8:0] ) ;
+	PE = b1 & vm = 1 & iopl < 0x3 & vip = b0 & VME = b1 : ( rflags # [63:20]) @ ( b1 ) @ (rflags # [18:0] ) ;
 	default : rflags;
 esac;
 
@@ -102,6 +102,8 @@ DEFINE
 
 cplVsIopl := (cpl > RFLAGS_I # [13:12]) =>
 				(sti.exitStatus = gp);
+
+(*These instructions (STI & CLI) may be executed only if the CPL is equal to or less than the IOPL. A general-protection exception (#GP) is generated if they are executed when the CPL is greater than the IOPL 6.8.1 volume 3*)
 
 EXEC
 initialize;
