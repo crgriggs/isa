@@ -80,3 +80,7 @@ simulate(1);
 decide( (rflags # [13:12] < 0x3 & rflags # [17:17] = 0x1 # [0:0]) => (in.exitStatus = gp) );
 (*Volume 3 20.2.5 Entering Virtual-8086 Mode
 General-protection exception caused by software interrupt (INT n), IRET, POPF, PUSHF, IN, or OUT when IOPL is less than 3.*)
+
+(*decide ((in.exitStatus = normal) => (rflags # [13:12] >= cpl))
+
+"The CPL of the currently running program or task must be less than or equal to the IOPL to access the I/O address space." Intel Vol. 3 Ch. 2.3*)
