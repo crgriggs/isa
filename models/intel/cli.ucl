@@ -14,7 +14,7 @@ cpl : BITVEC[2];
 RFLAGS_I : BITVEC[64];
 
 (*** MODULE ***)
-MODULE sti
+MODULE cli
 INPUT
 
 VAR
@@ -40,7 +40,7 @@ vip := rflags # [20:20];
 
 gp_fault := case
 	PE = b1 & vm = b0 & iopl < cpl & (cpl < 0x3 | PVI = b0) : true;
-	PE = b1 & vm = b1 & iopl < 0x3 & (vip = b1 | VME = b0) : true; 
+	PE = b1 & vm = b1 & iopl < 0x3 &  VME = b0 : true; 
 	default : false;
 esac;
 
@@ -59,11 +59,11 @@ esac;
 
 init[rflags] := RFLAGS_I;
 next[rflags] := case
-	PE = b0: ( rflags # [63:10]) @ ( b1 ) @ (rflags # [8:0] ) ;
-	PE = b1 & vm = 0 & iopl >= cpl : ( rflags # [63:10]) @ ( b1 ) @ (rflags # [8:0] ) ;
-	PE = b1 & vm = 0 & iopl < cpl & cpl = 0x3 & PVI = b1: ( rflags # [63:20]) @ ( b1 ) @ (rflags # [18:0] ) ;
-	PE = b1 & vm = 1 & iopl = 0x3 : ( rflags # [63:10]) @ ( b1 ) @ (rflags # [8:0] ) ;
-	PE = b1 & vm = 1 & iopl < 0x3 & vip = b0 & VME = b1 : ( rflags # [63:20]) @ ( b1 ) @ (rflags # [18:0] ) ;
+	PE = b0: ( rflags # [63:10]) @ ( b0 ) @ (rflags # [8:0] ) ;
+	PE = b1 & vm = 0 & iopl >= cpl : ( rflags # [63:10]) @ ( b0 ) @ (rflags # [8:0] ) ;
+	PE = b1 & vm = 0 & iopl < cpl & cpl = 0x3 & PVI = b1: ( rflags # [63:20]) @ ( b0 ) @ (rflags # [18:0] ) ;
+	PE = b1 & vm = 1 & iopl = 0x3 : ( rflags # [63:10]) @ ( b0 ) @ (rflags # [8:0] ) ;
+	PE = b1 & vm = 1 & iopl < 0x3 & VME = b1 : ( rflags # [63:20]) @ ( b0 ) @ (rflags # [18:0] ) ;
 	default : rflags;
 esac;
 
