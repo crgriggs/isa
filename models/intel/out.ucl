@@ -1,0 +1,82 @@
+MODEL x86
+
+typedef exitMode : enum {gp, normal};
+
+CONST
+(*Control Register 0 variables*)
+PE : BITVEC[1];
+
+(*Any I/O Permission Bit for I/O port being accessed = 1*)
+IoPermission : BITVEC[1];
+
+cpl : BITVEC[2];
+rflags : BITVEC[64];
+
+DEST_I : BITVEC[32];
+SRC_I : BITVEC[32];
+
+(*** MODULE ***)
+MODULE out
+INPUT
+
+VAR
+
+(* System registers *)
+src : BITVEC[32];
+
+(* Exit status *)
+exitStatus : exitMode;
+
+
+CONST
+DEFINE
+(* Single-bit values *)
+b0 := 0x0 # [0:0];
+b1 := 0x1 # [0:0];
+
+
+vm := rflags # [17:17];
+iopl := rflags # [13:12];
+vip := rflags # [20:20];
+
+
+gp_fault := case
+	((PE = b1) &  ((iopl < cpl) | (vm = b1))) & IoPermission = b1: true; 
+	default : false;
+esac;
+
+
+
+
+ASSIGN
+(* Define how state variables are updated. *)
+
+init[exitStatus] := normal;
+next[exitStatus] := case
+	gp_fault : gp;
+	default : normal;
+esac;
+
+
+init[src] := SRC_I;
+next[src] := case
+	next[exitStatus] = normal : DEST_I;
+	default : src
+esac;
+
+
+
+(*** CONTROL ***)
+CONTROL
+EXTVAR
+STOREVAR
+VAR
+CONST
+DEFINE
+EXEC
+initialize;
+simulate(1);
+
+decide( (rflags # [13:12] < 0x3 & rflags # [17:17] = 0x1 # [0:0]) => (out.exitStatus = gp) );
+(*Volume 3 20.2.5 Entering Virtual-8086 Mode
+General-protection exception caused by software interrupt (INT n), IRET, POPF, PUSHF, IN, or OUT when IOPL is less than 3.*)
