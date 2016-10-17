@@ -1,0 +1,182 @@
+MODEL x86
+
+typedef exitMode : enum {gp, normal};
+
+CONST
+IA32_SYSENTER_CS : BITVEC[15];
+IA32_SYSENTER_ESP : BITVEC[64];
+IA32_SYSENTER_EIP : BITVEC[64];
+IA32_MODE : BITVEC[1];
+
+RFLAGS_I : BITVEC[64];
+
+
+CS_I : BITVEC[80];
+SS_I : BITVEC[80];
+RIP_I : BITVEC[64];
+RSP_I : BITVEC[64];
+CPL_I : BITVEC[2];
+
+rcx : BITVEC[64];
+rdx : BITVEC[64];
+ecx : BITVEC[32];
+edx : BITVEC[32];
+
+(*0-16bit, 1-32bit, >1-64bit*)
+OPSIZE : BITVEC[2];
+
+(*Control Register 0 variables*)
+PE : BITVEC[1];
+
+(*** MODULE ***)
+MODULE sysenter
+INPUT
+
+VAR
+rflags : BITVEC[64];
+
+cs : BITVEC[80];
+ss : BITVEC[80];
+
+(* System registers *)
+rip : BITVEC[64];
+rsp : BITVEC[64];
+
+
+(* Exit status *)
+exitStatus : exitMode;
+
+(* Current privilege level *)
+cpl : BITVEC[2];
+
+CONST
+DEFINE
+(* Single-bit values *)
+b0 := 0x0 # [0:0];
+b1 := 0x1 # [0:0];
+
+16bit := case
+	OPSIZE = 0x0 : true;
+	default : false;
+esac;
+
+32bit := case
+	OPSIZE = 0x1 : true;
+	default : false;
+esac;
+
+64bit := case
+    OPSIZE > 0x1 : true;
+	default : false;
+esac;
+
+(* CS fields *)
+cs_selector := (IA32_SYSENTER_CS && 0xFFFC); (*CS # [79:64]*)
+
+cs_segmentLimit := 0xFFFF; (*CS # [15:0]*)
+cs_baseAddress := 0x0000; (*CS # [31:16]*)
+cs_baseAddress2 := 0x00; (*CS # [39:32]*)
+cs_type := 0xB; (*CS # [43:40]*)
+cs_s := b1; (*CS # [44:44]*)
+cs_dpl := b0@b0; (*CS # [46:45]. '@' does concatenation. *)
+cs_p := b1; (*CS # [47:47]*)
+cs_segmentLimit2 := 0xF; (*CS # [51:48]*)
+cs_avl := cs # [52:52];
+cs_l := b0; (*CS # [53:53]*)
+cs_l_64 := b1;
+cs_db := b1; (*CS # [54:54]*)
+cs_db_64 := b0; (*CS # [54:54]*)
+cs_g := b1; (*CS # [55:55]*)
+cs_baseAddress3 := 0x00; (*CS # [63:56]*)
+
+(* Use the '@' to concatenate bitvectors. *)
+cs_register := cs_selector @ cs_baseAddress3 @ cs_g @ cs_db @ cs_l @ cs_avl @ cs_segmentLimit2 @ cs_p @ cs_dpl @ cs_s @ cs_type @ cs_baseAddress2 @ cs_baseAddress @ cs_segmentLimit;
+cs_register_ia32 := (cs_selector_64 @ cs_baseAddress3 @ cs_g @ cs_db_64 @ cs_l_64 @ cs_avl @ cs_segmentLimit2 @ cs_p @ cs_dpl @ cs_s @ cs_type @ cs_baseAddress2 @ cs_baseAddress @ cs_segmentLimit)
+
+(* SS fields *)
+ss_selector := (next[cs] # [79:64]) +_16 0x0008; (*SS # [79:64]*)
+ss_segmentLimit := 0xFFFF; (*SS # [15:0]*)
+ss_baseAddress := 0x0000; (*SS # [31:16]*)
+ss_baseAddress2 := 0x00; (*SS # [39:32]*)
+ss_type := 0x3; (*SS # [43:40]*)
+ss_s := b1; (*SS # [44:44]*)
+ss_dpl := b0@b0; (*SS # [46:45]*)
+ss_p := b1; (*SS # [47:47]*)
+ss_segmentLimit2 := 0xF; (*SS # [51:48]*)
+ss_avl := ss # [52:52];
+ss_l := ss # [53:53];
+ss_db := b1; (*SS # [54:54]*)
+ss_g := b1; (*SS # [55:55]*)
+ss_baseAddress3 := 0x00; (*SS # [63:56]*)
+
+ss_register := ss_selector @ ss_baseAddress3 @ ss_g @ ss_db @ ss_l @ ss_avl @ ss_segmentLimit2 @ ss_p @ ss_dpl @ ss_s @ ss_type @ ss_baseAddress2 @ ss_baseAddress @ ss_segmentLimit;
+
+gp_fault := case
+	IA32_SYSENTER_CS # [15:2] = b0 | PE = b0: true;
+	default : false;
+esac;
+
+
+ASSIGN
+(* Define how state variables are updated. *)
+
+init[exitStatus] := normal;
+next[exitStatus] := case
+	gp_fault : gp;
+	default : normal;
+esac;
+
+init[rflags] := RFLAGS_I;
+next[rflags] := case
+	next[exitStatus] = normal : (rflags # [63:18]) @ (b0) @ (rflags # [16:10]) @ (b0) @ (rflags # [8:0]);
+	default : rflags;
+esac;
+
+init[rsp] := RSP_I;
+next[rsp] := case
+	next[exitStatus] = normal & IA32_MODE = b1 : IA32_SYSENTER_ESP;
+	next[exitStatus] = normal & IA32_MODE = b0 : 0x00000000 @ IA32_SYSENTER_ESP # [31:0];
+	default: rsp;
+esac;
+
+init[rip] := RIP_I;
+next[rip] := case
+	next[exitStatus] = normal & IA32_MODE = b1 : IA32_SYSENTER_EIP;
+	next[exitStatus] = normal & IA32_MODE = b0 : 0x00000000 @ IA32_SYSENTER_EIP # [31:0];
+	default: rip;
+esac;
+
+
+
+init[cs] := CS_I;
+next[cs] := case
+	next[exitStatus] = normal & IA32_MODE = b1 : cs_register_ia32;
+	next[exitStatus] = normal & IA32_MODE = b0 : cs_register;
+	default : cs;
+esac;
+
+init[cpl] := CPL_I;
+next[cpl] := case
+	next[exitStatus] = normal : 0;
+	default : cpl;
+esac;
+
+init[ss] := SS_I;
+next[ss] := case
+	next[exitStatus] = normal : ss_register;
+	default : ss;
+esac;
+
+
+(*** CONTROL ***)
+CONTROL
+EXTVAR
+STOREVAR
+VAR
+
+
+CONST
+DEFINE
+EXEC
+initialize;
+simulate(1);
