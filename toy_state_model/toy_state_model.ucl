@@ -1,0 +1,82 @@
+MODEL ToyStateModel
+
+typedef opcode : enum{call, jmp, other};
+
+CONST
+
+(* ----- callInst MODULE ----- *)
+MODULE callInst
+
+INPUT
+
+VAR
+var1 : BITVEC[16];
+State.opcode_table : BITVEC[16];
+State.instruction_opcode : opcode;
+
+CONST
+
+DEFINE
+
+ASSIGN
+init[var1] := 0x4444;
+next[var1] := case
+    State.instruction_opcode = call : var1 +_16 0x0001;
+    default : var1;
+esac;
+
+(* ----- STATE MODULE ----- *)
+MODULE State
+
+INPUT
+
+VAR
+var1 : BITVEC[16];
+callInst.var1 : BITVEC[16];
+instruction_opcode : opcode;
+
+opcode_table : BITVEC[16];
+
+CONST
+opcode_table_init : BITVEC[16];
+
+DEFINE
+instruction_opcode_macro := case
+    opcode_table#[1:0] = 0x0 : jmp;
+    opcode_table#[1:0] = 0x1 : call;
+    default : other;
+esac;
+
+ASSIGN
+init[opcode_table] := opcode_table_init;
+next[opcode_table] := opcode_table <<_16 0x0002;
+
+init[instruction_opcode] := instruction_opcode_macro;
+next[instruction_opcode] := instruction_opcode_macro;
+
+init[var1] := 0xF000;
+next[var1] := case
+  (instruction_opcode = call) : next[callInst.var1];
+  default : var1;
+esac;
+
+(* ----- CONTROL MODULE ----- *)
+CONTROL
+
+EXTVAR
+
+STOREVAR
+
+VAR
+
+CONST
+
+DEFINE
+
+EXEC
+print(State.var1);
+simulate(1);
+print(State.var1);
+decide(State.var1 = 0x4445);
+simulate(1);
+print(State.var1);
