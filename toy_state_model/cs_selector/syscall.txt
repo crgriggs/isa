@@ -1,0 +1,19 @@
+MODULE syscallInst
+
+INPUT
+
+VAR
+cs_selector : BITVEC[16];
+
+
+CONST
+
+IA32_STAR : BITVEC[64];
+
+DEFINE
+
+
+ASSIGN
+
+init[cs_selector] := State.cs_selector;
+next[cs_selector] := (IA32_STAR # [47:32]) && (0xFFFC)

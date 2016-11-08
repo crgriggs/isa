@@ -1,0 +1,21 @@
+(* ----- CONTROL MODULE ----- *)
+CONTROL
+
+EXTVAR
+
+STOREVAR
+
+VAR
+
+CONST
+
+DEFINE
+
+EXEC
+print(State.cs_selector)
+simulate(1);
+print(State.cs_selector)
+simulate(1);
+print(State.cs_selector)
+simulate(1);
+print(State.cs_selector)

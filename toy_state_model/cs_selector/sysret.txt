@@ -1,0 +1,31 @@
+MODULE sysretInst
+
+INPUT
+
+VAR
+cs_selector : BITVEC[16];
+
+
+CONST
+
+MSR_STAR_SYSRET_CS : BITVEC[16];
+64_bit : BITVEC[1];
+
+(* Single-bit values *)
+b0 := 0x0 # [0:0];
+b1 := 0x1 # [0:0];
+
+DEFINE
+
+cs_selector_64 := MSR_STAR_SYSRET_CS || 0x3; (*CS # [79:64]*)
+cs_selector_32_16 := (MSR_STAR_SYSRET_CS +_16 0x0010) || 0x3 ; (*CS # [79:64]*)
+
+ASSIGN
+
+
+init[cs_selector] := State.cs_selector;
+next[cs_selector] := case
+	(64_BIT = b1) : cs_selector_64;
+	(64_BIT = b0) : cs_selector_32_16;
+	default : cs_selector;
+esac;

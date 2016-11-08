@@ -1,0 +1,22 @@
+MODULE State
+
+INPUT
+
+VAR
+cs_selector : BITVEC[16]
+instruction_opcode : opcode;
+
+CONST
+
+DEFINE
+
+ASSIGN
+init[instruction_opcode] := {syscall, sysret, other};
+next[instruction_opcode] := {syscall, sysret, other};
+
+init[cs_selector] := 0x000F;
+next[cs_selector] := case
+  (instruction_opcode = sysret) : next[sysretInst.cs_selector];
+  (instruction_opcode = syscall) : next[jmpInst.cs_selector];
+  default : cs_selector;
+esac;
