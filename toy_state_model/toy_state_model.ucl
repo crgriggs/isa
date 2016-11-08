@@ -8,11 +8,10 @@ CONST
 MODULE callInst
 
 INPUT
+State.var1 : BITVEC[16];
 
 VAR
 var1 : BITVEC[16];
-State.opcode_table : BITVEC[16];
-State.instruction_opcode : opcode;
 
 CONST
 
@@ -20,10 +19,24 @@ DEFINE
 
 ASSIGN
 init[var1] := 0x4444;
-next[var1] := case
-    State.instruction_opcode = call : var1 +_16 0x0001;
-    default : var1;
-esac;
+next[var1] := State.var1 +_16 0x0002;
+
+(* ----- jmpInst MODULE ----- *)
+MODULE jmpInst
+
+INPUT
+State.var1 : BITVEC[16];
+
+VAR
+var1 : BITVEC[16];
+
+CONST
+
+DEFINE
+
+ASSIGN
+init[var1] := 0x4444;
+next[var1] := State.var1 +_16 0x0003;
 
 (* ----- STATE MODULE ----- *)
 MODULE State
@@ -32,31 +45,20 @@ INPUT
 
 VAR
 var1 : BITVEC[16];
-callInst.var1 : BITVEC[16];
 instruction_opcode : opcode;
 
-opcode_table : BITVEC[16];
-
 CONST
-opcode_table_init : BITVEC[16];
 
 DEFINE
-instruction_opcode_macro := case
-    opcode_table#[1:0] = 0x0 : jmp;
-    opcode_table#[1:0] = 0x1 : call;
-    default : other;
-esac;
 
 ASSIGN
-init[opcode_table] := opcode_table_init;
-next[opcode_table] := opcode_table <<_16 0x0002;
-
-init[instruction_opcode] := instruction_opcode_macro;
-next[instruction_opcode] := instruction_opcode_macro;
+init[instruction_opcode] := {jmp, call, other};
+next[instruction_opcode] := {jmp, call, other};
 
 init[var1] := 0xF000;
 next[var1] := case
   (instruction_opcode = call) : next[callInst.var1];
+  (instruction_opcode = jmp) : next[jmpInst.var1];
   default : var1;
 esac;
 
@@ -74,9 +76,9 @@ CONST
 DEFINE
 
 EXEC
-print(State.var1);
+simulate(2);
+decide(State.var1 != 0xF005);
+(*
 simulate(1);
 print(State.var1);
-decide(State.var1 = 0x4445);
-simulate(1);
-print(State.var1);
+*)
