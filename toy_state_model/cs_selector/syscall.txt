@@ -1,6 +1,7 @@
 MODULE syscallInst
 
 INPUT
+State.cs_selector : BITVEC[16];
 
 VAR
 cs_selector : BITVEC[16];
@@ -15,5 +16,5 @@ DEFINE
 
 ASSIGN
 
-init[cs_selector] := State.cs_selector;
-next[cs_selector] := (IA32_STAR # [47:32]) && (0xFFFC)
+init[cs_selector] := 0x0000;
+next[cs_selector] := (IA32_STAR # [47:32]) && (0xFFFC);
