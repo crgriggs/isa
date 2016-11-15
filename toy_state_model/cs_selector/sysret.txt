@@ -2,31 +2,26 @@ MODULE sysretInst
 
 INPUT
 State.cs_selector : BITVEC[16];
+State.IA32_STAR : BITVEC[64];
 
 VAR
 cs_selector : BITVEC[16];
 
+ret_to_64_bit : TRUTH;  (* 0: encoding 0F07, 1: encoding REX.W+0F07 *)
 
 CONST
 
-MSR_STAR_SYSRET_CS : BITVEC[16];
-64_bit : BITVEC[1];
-
-
 DEFINE
-(* Single-bit values *)
-b0 := 0x0 # [0:0];
-b1 := 0x1 # [0:0];
-
-cs_selector_64 := MSR_STAR_SYSRET_CS || 0x3; (*CS # [79:64]*)
-cs_selector_32_16 := (MSR_STAR_SYSRET_CS +_16 0x0010) || 0x3 ; (*CS # [79:64]*)
+cs_selector_64 := State.IA32_STAR # [63:48] || 0x3;
+cs_selector_32 := (State.IA32_STAR # [63:48] +_16 0x0010) || 0x3;
 
 ASSIGN
 
+init[ret_to_64_bit] := {true, false};
+next[ret_to_64_bit] := {true, false};
 
 init[cs_selector] := 0x0000;
 next[cs_selector] := case
-	(64_bit = b1) : cs_selector_64;
-	(64_bit = b0) : cs_selector_32_16;
-	default : cs_selector;
+	ret_to_64_bit : cs_selector_64;
+	default : cs_selector_32;
 esac;

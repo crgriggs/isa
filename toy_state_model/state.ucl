@@ -1,77 +1,88 @@
+(*----- header.txt -----*)
 MODEL StateModel
 
 typedef opcode : enum{syscall, sysret, other};
 
 CONST
 
+(*----- ./cs_selector//sysret.txt -----*)
 MODULE sysretInst
 
 INPUT
 State.cs_selector : BITVEC[16];
+State.IA32_STAR : BITVEC[64];
 
 VAR
 cs_selector : BITVEC[16];
 
+ret_to_64_bit : TRUTH;  (* 0: encoding 0F07, 1: encoding REX.W+0F07 *)
 
 CONST
 
-MSR_STAR_SYSRET_CS : BITVEC[16];
-64_bit : BITVEC[1];
-
-
 DEFINE
-(* Single-bit values *)
-b0 := 0x0 # [0:0];
-b1 := 0x1 # [0:0];
-
-cs_selector_64 := MSR_STAR_SYSRET_CS || 0x3; (*CS # [79:64]*)
-cs_selector_32_16 := (MSR_STAR_SYSRET_CS +_16 0x0010) || 0x3 ; (*CS # [79:64]*)
+cs_selector_64 := State.IA32_STAR # [63:48] || 0x3;
+cs_selector_32 := (State.IA32_STAR # [63:48] +_16 0x0010) || 0x3;
 
 ASSIGN
 
+init[ret_to_64_bit] := {true, false};
+next[ret_to_64_bit] := {true, false};
 
 init[cs_selector] := 0x0000;
 next[cs_selector] := case
-	(64_bit = b1) : cs_selector_64;
-	(64_bit = b0) : cs_selector_32_16;
-	default : cs_selector;
+	ret_to_64_bit : cs_selector_64;
+	default : cs_selector_32;
 esac;
+
+(*----- ./cs_selector//syscall.txt -----*)
 MODULE syscallInst
 
 INPUT
+State.cs_l : BITVEC[1];
 State.cs_selector : BITVEC[16];
+State.IA32_EFER_LMA : BITVEC[64];
+State.IA32_EFER_SCE : BITVEC[64];
+State.IA32_STAR : BITVEC[64];
 
 VAR
 cs_selector : BITVEC[16];
 
-
 CONST
 
-IA32_STAR : BITVEC[64];
-
 DEFINE
-
 
 ASSIGN
 
 init[cs_selector] := 0x0000;
-next[cs_selector] := (IA32_STAR # [47:32]) && (0xFFFC);
+next[cs_selector] := case
+    State.cs_l != 1 : State.cs_selector;
+    State.IA32_EFER_LMA != 1 : State.cs_selector;
+    State.IA32_EFER_SCE != 1 : State.cs_selector;
+    default : (State.IA32_STAR # [47:32]) && (0xFFFC);
+esac;
 
+(*----- state.txt -----*)
 MODULE State
 
 INPUT
+instruction_opcode : opcode;
 
 VAR
 cs_selector : BITVEC[16];
-instruction_opcode : opcode;
+cs_l : BITVEC[1];
+IA32_EFER_LMA : BITVEC[64];
+IA32_EFER_SCE : BITVEC[64];
+IA32_STAR: BITVEC[64];
 
 CONST
+init_cs_l : BITVEC[1];
+init_IA32_EFER_LMA : BITVEC[64];
+init_IA32_EFER_SCE : BITVEC[64];
+init_IA32_STAR : BITVEC[64];
 
 DEFINE
 
 ASSIGN
-init[instruction_opcode] := {syscall, sysret, other};
-next[instruction_opcode] := {syscall, sysret, other};
 
 init[cs_selector] := 0x000F;
 next[cs_selector] := case
@@ -79,10 +90,39 @@ next[cs_selector] := case
   (instruction_opcode = syscall) : next[syscallInst.cs_selector];
   default : cs_selector;
 esac;
+
+init[cs_l] := init_cs_l;
+next[cs_l] := cs_l;
+
+init[IA32_EFER_LMA] := init_IA32_EFER_LMA;
+next[IA32_EFER_LMA] := IA32_EFER_LMA;
+
+init[IA32_EFER_SCE] := init_IA32_EFER_SCE;
+next[IA32_EFER_SCE] := IA32_EFER_SCE;
+
+init[IA32_STAR] := init_IA32_STAR;
+next[IA32_STAR] := IA32_STAR;
+
+(*----- control.txt -----*)
 (* ----- CONTROL MODULE ----- *)
 CONTROL
 
 EXTVAR
+(* Controlling values at each step:
+ * A variable must be declared here with a type and default value in order to
+ * control its value at each step. Then, in the EXEC section, set the value for
+ * a simulation step like this:
+ *
+ *     instruction_opcode[0] := syscall;
+ *
+ * The simulation steps are 0-indexed, so the statement above will set the
+ * first simulation step's opcode to syscall.
+ *
+ * TODO: EXTVARs can't be printed for some reason:
+ *       "print(instruction_opcode[0]);" causes a syntax error.
+ *       "print(instruction_opcode);" errors with "Uncaught exception: CSExn".
+ *)
+instruction_opcode : opcode := {syscall, sysret, other};
 
 STOREVAR
 
@@ -93,10 +133,17 @@ CONST
 DEFINE
 
 EXEC
-print(State.cs_selector);
+(* To keep output clean and to keep test and assertions from interfering with
+ * eachother, only uncomment one of the blocks below:
+ *)
+
+(* Test the case statement for cs_selector *)
+(*
+instruction_opcode[0] := syscall;
+instruction_opcode[1] := sysret;
 simulate(1);
-print(State.cs_selector);
+decide(State.cs_selector = syscallInst.cs_selector);
 simulate(1);
-print(State.cs_selector);
-simulate(1);
-print(State.cs_selector);
+decide(State.cs_selector = sysretInst.cs_selector);
+*)
+

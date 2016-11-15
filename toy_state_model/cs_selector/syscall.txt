@@ -1,20 +1,25 @@
 MODULE syscallInst
 
 INPUT
+State.cs_l : BITVEC[1];
 State.cs_selector : BITVEC[16];
+State.IA32_EFER_LMA : BITVEC[64];
+State.IA32_EFER_SCE : BITVEC[64];
+State.IA32_STAR : BITVEC[64];
 
 VAR
 cs_selector : BITVEC[16];
 
-
 CONST
 
-IA32_STAR : BITVEC[64];
-
 DEFINE
-
 
 ASSIGN
 
 init[cs_selector] := 0x0000;
-next[cs_selector] := (IA32_STAR # [47:32]) && (0xFFFC);
+next[cs_selector] := case
+    State.cs_l != 1 : State.cs_selector;
+    State.IA32_EFER_LMA != 1 : State.cs_selector;
+    State.IA32_EFER_SCE != 1 : State.cs_selector;
+    default : (State.IA32_STAR # [47:32]) && (0xFFFC);
+esac;

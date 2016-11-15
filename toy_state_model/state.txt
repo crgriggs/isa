@@ -1,18 +1,24 @@
 MODULE State
 
 INPUT
+instruction_opcode : opcode;
 
 VAR
 cs_selector : BITVEC[16];
-instruction_opcode : opcode;
+cs_l : BITVEC[1];
+IA32_EFER_LMA : BITVEC[64];
+IA32_EFER_SCE : BITVEC[64];
+IA32_STAR: BITVEC[64];
 
 CONST
+init_cs_l : BITVEC[1];
+init_IA32_EFER_LMA : BITVEC[64];
+init_IA32_EFER_SCE : BITVEC[64];
+init_IA32_STAR : BITVEC[64];
 
 DEFINE
 
 ASSIGN
-init[instruction_opcode] := {syscall, sysret, other};
-next[instruction_opcode] := {syscall, sysret, other};
 
 init[cs_selector] := 0x000F;
 next[cs_selector] := case
@@ -20,3 +26,15 @@ next[cs_selector] := case
   (instruction_opcode = syscall) : next[syscallInst.cs_selector];
   default : cs_selector;
 esac;
+
+init[cs_l] := init_cs_l;
+next[cs_l] := cs_l;
+
+init[IA32_EFER_LMA] := init_IA32_EFER_LMA;
+next[IA32_EFER_LMA] := IA32_EFER_LMA;
+
+init[IA32_EFER_SCE] := init_IA32_EFER_SCE;
+next[IA32_EFER_SCE] := IA32_EFER_SCE;
+
+init[IA32_STAR] := init_IA32_STAR;
+next[IA32_STAR] := IA32_STAR;

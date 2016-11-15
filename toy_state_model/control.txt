@@ -2,6 +2,21 @@
 CONTROL
 
 EXTVAR
+(* Controlling values at each step:
+ * A variable must be declared here with a type and default value in order to
+ * control its value at each step. Then, in the EXEC section, set the value for
+ * a simulation step like this:
+ *
+ *     instruction_opcode[0] := syscall;
+ *
+ * The simulation steps are 0-indexed, so the statement above will set the
+ * first simulation step's opcode to syscall.
+ *
+ * TODO: EXTVARs can't be printed for some reason:
+ *       "print(instruction_opcode[0]);" causes a syntax error.
+ *       "print(instruction_opcode);" errors with "Uncaught exception: CSExn".
+ *)
+instruction_opcode : opcode := {syscall, sysret, other};
 
 STOREVAR
 
@@ -12,10 +27,16 @@ CONST
 DEFINE
 
 EXEC
-print(State.cs_selector);
+(* To keep output clean and to keep test and assertions from interfering with
+ * eachother, only uncomment one of the blocks below:
+ *)
+
+(* Test the case statement for cs_selector *)
+(*
+instruction_opcode[0] := syscall;
+instruction_opcode[1] := sysret;
 simulate(1);
-print(State.cs_selector);
+decide(State.cs_selector = syscallInst.cs_selector);
 simulate(1);
-print(State.cs_selector);
-simulate(1);
-print(State.cs_selector);
+decide(State.cs_selector = sysretInst.cs_selector);
+*)
