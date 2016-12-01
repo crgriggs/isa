@@ -1,0 +1,31 @@
+
+/----- State Module -----/
+MODULE State()
+
+VAR
+cs_selector : unsigned word[16];
+
+ASSIGN
+init(cs_selector) := 0uh16_000F;
+
+
+/----- Main Module -----/
+MODULE main
+
+VAR
+opcode : {sysret, syscall, other};
+state : State();
+
+i_sysret : Sysret(state);
+i_syscall : Syscall(state);
+
+ASSIGN
+
+next(state.cs_selector) := case
+    next(opcode) = sysret  : i_sysret.cs_selector;
+    next(opcode) = syscall : i_syscall.cs_selector;
+    TRUE                   : state.cs_selector;
+esac;
+
+LTLSPEC X(opcode = sysret -> state.cs_selector = i_sysret.cs_selector)
+LTLSPEC X(opcode = syscall -> state.cs_selector = i_syscall.cs_selector)

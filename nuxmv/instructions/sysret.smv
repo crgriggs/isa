@@ -1,0 +1,8 @@
+
+MODULE Sysret(state)
+
+VAR
+cs_selector : unsigned word[16];
+
+ASSIGN
+cs_selector := 0uh16_0002;
