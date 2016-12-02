@@ -3,6 +3,8 @@
 MODULE Sysret(state)
 
 VAR
+
+-- Outputs
 cs_selector : unsigned word[16];
 
 ASSIGN
@@ -13,10 +15,19 @@ cs_selector := 0uh16_0002;
 MODULE Syscall(state)
 
 VAR
+
+-- Outputs
 cs_selector : unsigned word[16];
 
+-- Unconstrained inputs
+ret_to_64_bit : boolean;  /-- T: encoding 0F07
+                              F: encoding REX.W+0F07 --/
+
 ASSIGN
-cs_selector := 0uh16_0003;
+cs_selector := case
+    ret_to_64_bit : 0uh16_0003;
+    TRUE          : 0uh16_0005;
+esac;
 
 /-- File: main.smv --/
 
@@ -43,11 +54,11 @@ i_syscall : Syscall(state);
 ASSIGN
 
 next(state.cs_selector) := case
-    next(opcode) = sysret  : i_sysret.cs_selector;
-    next(opcode) = syscall : i_syscall.cs_selector;
+    next(opcode) = sysret  : next(i_sysret.cs_selector);
+    next(opcode) = syscall : next(i_syscall.cs_selector);
     TRUE                   : state.cs_selector;
 esac;
 
-LTLSPEC X(opcode = sysret -> state.cs_selector = i_sysret.cs_selector)
-LTLSPEC X(opcode = syscall -> state.cs_selector = i_syscall.cs_selector)
+LTLSPEC X(G(opcode = sysret -> state.cs_selector = i_sysret.cs_selector))
+LTLSPEC G(opcode = syscall -> state.cs_selector = i_syscall.cs_selector)
 

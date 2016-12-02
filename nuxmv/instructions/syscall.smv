@@ -2,7 +2,16 @@
 MODULE Syscall(state)
 
 VAR
+
+-- Outputs
 cs_selector : unsigned word[16];
 
+-- Unconstrained inputs
+ret_to_64_bit : boolean;  /-- T: encoding 0F07
+                              F: encoding REX.W+0F07 --/
+
 ASSIGN
-cs_selector := 0uh16_0003;
+cs_selector := case
+    ret_to_64_bit : 0uh16_0003;
+    TRUE          : 0uh16_0005;
+esac;

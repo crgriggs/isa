@@ -2,6 +2,8 @@
 MODULE Sysret(state)
 
 VAR
+
+-- Outputs
 cs_selector : unsigned word[16];
 
 ASSIGN
