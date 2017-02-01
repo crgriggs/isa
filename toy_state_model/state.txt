@@ -1,11 +1,17 @@
 MODULE State
 
 INPUT
-instruction_opcode : opcode;
+instruction_opcode : OPCODE;
 
 VAR
+prev_instruction_opcode : OPCODE;
+
+exception_raised : TRUTH;
+prev_exception_raised : TRUTH;
 cs_selector : BITVEC[16];
 cs_l : BITVEC[1];
+cpl : BITVEC[2];
+rsp : BITVEC[2];
 IA32_EFER_LMA : BITVEC[64];
 IA32_EFER_SCE : BITVEC[64];
 IA32_STAR: BITVEC[64];
@@ -20,11 +26,42 @@ DEFINE
 
 ASSIGN
 
+init[prev_instruction_opcode] := other;
+next[prev_instruction_opcode] := instruction_opcode;
+
+init[prev_exception_raised] := false;
+next[prev_exception_raised] := exception_raised;
+
+init[exception_raised] := false;
+next[exception_raised] := case
+  (instruction_opcode = sysret) : next[sysretInst.exception_raised];
+  (* (instruction_opcode = syscall) : next[syscallInst.exception_raised]; *)
+  (* (instruction_opcode = exception) : next[exceptionInst.exception_raised]; *)
+  default : false;
+esac;
+
 init[cs_selector] := 0x000F;
 next[cs_selector] := case
   (instruction_opcode = sysret) : next[sysretInst.cs_selector];
   (instruction_opcode = syscall) : next[syscallInst.cs_selector];
+  (* (instruction_opcode = exception) : next[exceptionInst.cs_selector]; *)
   default : cs_selector;
+esac;
+
+init[cpl] := {0x00, 0x01, 0x10, 0x11};
+next[cpl] := case
+  (* (instruction_opcode = sysret) : next[sysretInst.cpl]; *)
+  (* (instruction_opcode = syscall) : next[syscallInst.cpl]; *)
+  (instruction_opcode = exception) : next[exceptionInst.cpl];
+  default : cpl;
+esac;
+
+init[rsp] := {0x00, 0x01, 0x10, 0x11};
+next[rsp] := case
+  (* (instruction_opcode = sysret) : next[sysretInst.rsp]; *)
+  (* (instruction_opcode = syscall) : next[syscallInst.rsp]; *)
+  (instruction_opcode = exception) : next[exceptionInst.rsp];
+  default : rsp;
 esac;
 
 init[cs_l] := init_cs_l;

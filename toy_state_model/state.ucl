@@ -1,38 +1,31 @@
 (*----- header.txt -----*)
 MODEL StateModel
 
-typedef opcode : enum{syscall, sysret, other};
+typedef OPCODE : enum{syscall, sysret, exception, other};
 
 CONST
 
-(*----- ./cs_selector//sysret.txt -----*)
-MODULE sysretInst
+(*----- ./cs_selector//exception.txt -----*)
+MODULE exceptionInst
 
 INPUT
-State.cs_selector : BITVEC[16];
-State.IA32_STAR : BITVEC[64];
+State.rsp : BITVEC[2];
 
 VAR
-cs_selector : BITVEC[16];
-
-ret_to_64_bit : TRUTH;  (* 0: encoding 0F07, 1: encoding REX.W+0F07 *)
+rsp : BITVEC[2];
+cpl : BITVEC[2];
 
 CONST
 
 DEFINE
-cs_selector_64 := State.IA32_STAR # [63:48] || 0x3;
-cs_selector_32 := (State.IA32_STAR # [63:48] +_16 0x0010) || 0x3;
 
 ASSIGN
 
-init[ret_to_64_bit] := {true, false};
-next[ret_to_64_bit] := {true, false};
+init[rsp] := {0x00, 0x01, 0x10, 0x11};
+next[rsp] := {0x00, 0x01, 0x10, 0x11}; (* TODO *)
 
-init[cs_selector] := 0x0000;
-next[cs_selector] := case
-	ret_to_64_bit : cs_selector_64;
-	default : cs_selector_32;
-esac;
+init[cpl] := {0x00, 0x01, 0x10, 0x11};
+next[cpl] := {0x00, 0x01, 0x10, 0x11}; (* TODO *)
 
 (*----- ./cs_selector//syscall.txt -----*)
 MODULE syscallInst
@@ -61,15 +54,71 @@ next[cs_selector] := case
     default : (State.IA32_STAR # [47:32]) && (0xFFFC);
 esac;
 
+(*----- ./cs_selector//sysret.txt -----*)
+MODULE sysretInst
+
+INPUT
+State.cs_selector : BITVEC[16];
+State.IA32_STAR : BITVEC[64];
+State.cpl : BITVEC[2];
+
+VAR
+
+(* Operands *)
+ret_to_64_bit : TRUTH;  (* 0: encoding 0F07, 1: encoding REX.W+0F07 *)
+
+(* State *)
+exception_raised : TRUTH;
+cs_selector : BITVEC[16];
+
+CONST
+
+DEFINE
+cs_selector_64 := State.IA32_STAR # [63:48] || 0x3;
+cs_selector_32 := (State.IA32_STAR # [63:48] +_16 0x0010) || 0x3;
+
+ASSIGN
+
+init[ret_to_64_bit] := {true, false};
+next[ret_to_64_bit] := {true, false};
+
+init[cs_selector] := 0x0000;
+next[cs_selector] := case
+	ret_to_64_bit : cs_selector_64;
+	default : cs_selector_32;
+esac;
+
+init[exception_raised] := false;
+next[exception_raised] := case
+
+    (* Not in 64-Bit Mode or SYSCALL/SYSRET not enabled in IA32_EFER *)
+    (* #UD *)
+    State.cs_l != 1 : true;
+    State.IA32_EFER_LMA != 1 : true;
+    State.IA32_EFER_SCE != 1 : true;
+
+    (* #GP *)
+    State.cpl != 0 : true;
+    (* ~is_canonical(State.rcx) : true; *)
+
+    default: false;
+esac;
+
 (*----- state.txt -----*)
 MODULE State
 
 INPUT
-instruction_opcode : opcode;
+instruction_opcode : OPCODE;
 
 VAR
+prev_instruction_opcode : OPCODE;
+
+exception_raised : TRUTH;
+prev_exception_raised : TRUTH;
 cs_selector : BITVEC[16];
 cs_l : BITVEC[1];
+cpl : BITVEC[2];
+rsp : BITVEC[2];
 IA32_EFER_LMA : BITVEC[64];
 IA32_EFER_SCE : BITVEC[64];
 IA32_STAR: BITVEC[64];
@@ -84,11 +133,42 @@ DEFINE
 
 ASSIGN
 
+init[prev_instruction_opcode] := other;
+next[prev_instruction_opcode] := instruction_opcode;
+
+init[prev_exception_raised] := false;
+next[prev_exception_raised] := exception_raised;
+
+init[exception_raised] := false;
+next[exception_raised] := case
+  (instruction_opcode = sysret) : next[sysretInst.exception_raised];
+  (* (instruction_opcode = syscall) : next[syscallInst.exception_raised]; *)
+  (* (instruction_opcode = exception) : next[exceptionInst.exception_raised]; *)
+  default : false;
+esac;
+
 init[cs_selector] := 0x000F;
 next[cs_selector] := case
   (instruction_opcode = sysret) : next[sysretInst.cs_selector];
   (instruction_opcode = syscall) : next[syscallInst.cs_selector];
+  (* (instruction_opcode = exception) : next[exceptionInst.cs_selector]; *)
   default : cs_selector;
+esac;
+
+init[cpl] := {0x00, 0x01, 0x10, 0x11};
+next[cpl] := case
+  (* (instruction_opcode = sysret) : next[sysretInst.cpl]; *)
+  (* (instruction_opcode = syscall) : next[syscallInst.cpl]; *)
+  (instruction_opcode = exception) : next[exceptionInst.cpl];
+  default : cpl;
+esac;
+
+init[rsp] := {0x00, 0x01, 0x10, 0x11};
+next[rsp] := case
+  (* (instruction_opcode = sysret) : next[sysretInst.rsp]; *)
+  (* (instruction_opcode = syscall) : next[syscallInst.rsp]; *)
+  (instruction_opcode = exception) : next[exceptionInst.rsp];
+  default : rsp;
 esac;
 
 init[cs_l] := init_cs_l;
@@ -122,7 +202,10 @@ EXTVAR
  *       "print(instruction_opcode[0]);" causes a syntax error.
  *       "print(instruction_opcode);" errors with "Uncaught exception: CSExn".
  *)
-instruction_opcode : opcode := {syscall, sysret, other};
+instruction_opcode : OPCODE := case
+    State.exception_raised : exception;
+    default : {syscall, sysret, exception, other};
+esac;
 
 STOREVAR
 
@@ -145,5 +228,11 @@ simulate(1);
 decide(State.cs_selector = syscallInst.cs_selector);
 simulate(1);
 decide(State.cs_selector = sysretInst.cs_selector);
+*)
+
+(* Make sure exception_raised forces the next instruction to "exception" *)
+(*
+simulate(1);
+decide(State.prev_exception_raised => instruction_opcode = exception);
 *)
 

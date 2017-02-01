@@ -16,7 +16,10 @@ EXTVAR
  *       "print(instruction_opcode[0]);" causes a syntax error.
  *       "print(instruction_opcode);" errors with "Uncaught exception: CSExn".
  *)
-instruction_opcode : opcode := {syscall, sysret, other};
+instruction_opcode : OPCODE := case
+    State.exception_raised : exception;
+    default : {syscall, sysret, exception, other};
+esac;
 
 STOREVAR
 
@@ -39,4 +42,10 @@ simulate(1);
 decide(State.cs_selector = syscallInst.cs_selector);
 simulate(1);
 decide(State.cs_selector = sysretInst.cs_selector);
+*)
+
+(* Make sure exception_raised forces the next instruction to "exception" *)
+(*
+simulate(1);
+decide(State.prev_exception_raised => instruction_opcode = exception);
 *)

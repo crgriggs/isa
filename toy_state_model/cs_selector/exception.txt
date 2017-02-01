@@ -1,0 +1,20 @@
+MODULE exceptionInst
+
+INPUT
+State.rsp : BITVEC[2];
+
+VAR
+rsp : BITVEC[2];
+cpl : BITVEC[2];
+
+CONST
+
+DEFINE
+
+ASSIGN
+
+init[rsp] := {0x00, 0x01, 0x10, 0x11};
+next[rsp] := {0x00, 0x01, 0x10, 0x11}; (* TODO *)
+
+init[cpl] := {0x00, 0x01, 0x10, 0x11};
+next[cpl] := {0x00, 0x01, 0x10, 0x11}; (* TODO *)

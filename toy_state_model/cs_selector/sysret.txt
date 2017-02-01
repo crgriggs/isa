@@ -3,11 +3,16 @@ MODULE sysretInst
 INPUT
 State.cs_selector : BITVEC[16];
 State.IA32_STAR : BITVEC[64];
+State.cpl : BITVEC[2];
 
 VAR
-cs_selector : BITVEC[16];
 
+(* Operands *)
 ret_to_64_bit : TRUTH;  (* 0: encoding 0F07, 1: encoding REX.W+0F07 *)
+
+(* State *)
+exception_raised : TRUTH;
+cs_selector : BITVEC[16];
 
 CONST
 
@@ -24,4 +29,20 @@ init[cs_selector] := 0x0000;
 next[cs_selector] := case
 	ret_to_64_bit : cs_selector_64;
 	default : cs_selector_32;
+esac;
+
+init[exception_raised] := false;
+next[exception_raised] := case
+
+    (* Not in 64-Bit Mode or SYSCALL/SYSRET not enabled in IA32_EFER *)
+    (* #UD *)
+    State.cs_l != 1 : true;
+    State.IA32_EFER_LMA != 1 : true;
+    State.IA32_EFER_SCE != 1 : true;
+
+    (* #GP *)
+    State.cpl != 0 : true;
+    (* ~is_canonical(State.rcx) : true; *)
+
+    default: false;
 esac;

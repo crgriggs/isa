@@ -1,5 +1,5 @@
 MODEL StateModel
 
-typedef opcode : enum{syscall, sysret, other};
+typedef OPCODE : enum{syscall, sysret, exception, other};
 
 CONST
