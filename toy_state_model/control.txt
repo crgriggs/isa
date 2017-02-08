@@ -49,3 +49,10 @@ decide(State.cs_selector = sysretInst.cs_selector);
 simulate(1);
 decide(State.prev_exception_raised => instruction_opcode = exception);
 *)
+
+(* Privileged exception handlers must run with ring0 stack.
+ * This is the OS expectation that exposed the sysret bug.
+ *)
+simulate(1);
+simulate(1);
+decide(State.prev_instruction_opcode = exception => State.rsp = sys);

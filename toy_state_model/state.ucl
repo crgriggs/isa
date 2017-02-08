@@ -2,6 +2,7 @@
 MODEL StateModel
 
 typedef OPCODE : enum{syscall, sysret, exception, other};
+typedef USER_OR_SYS : enum{user, sys};
 
 CONST
 
@@ -9,11 +10,11 @@ CONST
 MODULE exceptionInst
 
 INPUT
-State.rsp : BITVEC[2];
+State.rsp : USER_OR_SYS;
 
 VAR
-rsp : BITVEC[2];
-cpl : BITVEC[2];
+rsp : USER_OR_SYS;
+cpl : USER_OR_SYS;
 
 CONST
 
@@ -21,11 +22,14 @@ DEFINE
 
 ASSIGN
 
-init[rsp] := {0x00, 0x01, 0x10, 0x11};
-next[rsp] := {0x00, 0x01, 0x10, 0x11}; (* TODO *)
+init[rsp] := {user, sys};
+next[rsp] := case
+    cpl = user : sys;  (* Stack Switch *)
+    default: rsp;
+esac;
 
-init[cpl] := {0x00, 0x01, 0x10, 0x11};
-next[cpl] := {0x00, 0x01, 0x10, 0x11}; (* TODO *)
+init[cpl] := sys;  (* We assume dpl in idt is 0 *)
+next[cpl] := sys;
 
 (*----- ./cs_selector//syscall.txt -----*)
 MODULE syscallInst
@@ -60,7 +64,7 @@ MODULE sysretInst
 INPUT
 State.cs_selector : BITVEC[16];
 State.IA32_STAR : BITVEC[64];
-State.cpl : BITVEC[2];
+State.cpl : USER_OR_SYS;
 
 VAR
 
@@ -98,8 +102,8 @@ next[exception_raised] := case
     State.IA32_EFER_SCE != 1 : true;
 
     (* #GP *)
-    State.cpl != 0 : true;
-    (* ~is_canonical(State.rcx) : true; *)
+    State.cpl != sys : true;
+    (* ~is_canonical(State.rcx) : true; *)  (* TODO *)
 
     default: false;
 esac;
@@ -111,14 +115,15 @@ INPUT
 instruction_opcode : OPCODE;
 
 VAR
+cur_instruction_opcode : OPCODE;
 prev_instruction_opcode : OPCODE;
 
 exception_raised : TRUTH;
 prev_exception_raised : TRUTH;
 cs_selector : BITVEC[16];
 cs_l : BITVEC[1];
-cpl : BITVEC[2];
-rsp : BITVEC[2];
+cpl : USER_OR_SYS;
+rsp : USER_OR_SYS;
 IA32_EFER_LMA : BITVEC[64];
 IA32_EFER_SCE : BITVEC[64];
 IA32_STAR: BITVEC[64];
@@ -132,6 +137,11 @@ init_IA32_STAR : BITVEC[64];
 DEFINE
 
 ASSIGN
+
+(*
+init[cur_instruction_opcode] := other;
+next[cur_instruction_opcode] := next[instruction_opcode];
+*)
 
 init[prev_instruction_opcode] := other;
 next[prev_instruction_opcode] := instruction_opcode;
@@ -155,7 +165,7 @@ next[cs_selector] := case
   default : cs_selector;
 esac;
 
-init[cpl] := {0x00, 0x01, 0x10, 0x11};
+init[cpl] := {user, sys};
 next[cpl] := case
   (* (instruction_opcode = sysret) : next[sysretInst.cpl]; *)
   (* (instruction_opcode = syscall) : next[syscallInst.cpl]; *)
@@ -163,7 +173,7 @@ next[cpl] := case
   default : cpl;
 esac;
 
-init[rsp] := {0x00, 0x01, 0x10, 0x11};
+init[rsp] := {user, sys};
 next[rsp] := case
   (* (instruction_opcode = sysret) : next[sysretInst.rsp]; *)
   (* (instruction_opcode = syscall) : next[syscallInst.rsp]; *)
@@ -206,6 +216,9 @@ instruction_opcode : OPCODE := case
     State.exception_raised : exception;
     default : {syscall, sysret, exception, other};
 esac;
+(*
+instruction_opcode : OPCODE := {syscall, sysret, exception, other};
+*)
 
 STOREVAR
 
@@ -235,4 +248,12 @@ decide(State.cs_selector = sysretInst.cs_selector);
 simulate(1);
 decide(State.prev_exception_raised => instruction_opcode = exception);
 *)
+
+(* Privileged exception handlers must run with ring0 stack.
+ * This is the OS expectation that exposed the sysret bug.
+ *)
+simulate(1);
+simulate(1);
+decide(State.prev_instruction_opcode = exception => State.rsp = sys);
+(* decide(prev_instruction_opcode = exception => State.ss = 0); *)
 

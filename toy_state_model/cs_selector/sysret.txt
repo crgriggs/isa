@@ -3,7 +3,7 @@ MODULE sysretInst
 INPUT
 State.cs_selector : BITVEC[16];
 State.IA32_STAR : BITVEC[64];
-State.cpl : BITVEC[2];
+State.cpl : USER_OR_SYS;
 
 VAR
 
@@ -41,8 +41,8 @@ next[exception_raised] := case
     State.IA32_EFER_SCE != 1 : true;
 
     (* #GP *)
-    State.cpl != 0 : true;
-    (* ~is_canonical(State.rcx) : true; *)
+    State.cpl != sys : true;
+    (* ~is_canonical(State.rcx) : true; *)  (* TODO *)
 
     default: false;
 esac;

@@ -1,11 +1,11 @@
 MODULE exceptionInst
 
 INPUT
-State.rsp : BITVEC[2];
+State.rsp : USER_OR_SYS;
 
 VAR
-rsp : BITVEC[2];
-cpl : BITVEC[2];
+rsp : USER_OR_SYS;
+cpl : USER_OR_SYS;
 
 CONST
 
@@ -13,8 +13,11 @@ DEFINE
 
 ASSIGN
 
-init[rsp] := {0x00, 0x01, 0x10, 0x11};
-next[rsp] := {0x00, 0x01, 0x10, 0x11}; (* TODO *)
+init[rsp] := {user, sys};
+next[rsp] := case
+    cpl = user : sys;  (* Stack Switch *)
+    default: rsp;
+esac;
 
-init[cpl] := {0x00, 0x01, 0x10, 0x11};
-next[cpl] := {0x00, 0x01, 0x10, 0x11}; (* TODO *)
+init[cpl] := sys;  (* We assume dpl in idt is 0 *)
+next[cpl] := sys;
