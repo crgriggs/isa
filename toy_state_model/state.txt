@@ -1,10 +1,9 @@
 MODULE State
 
 INPUT
-instruction_opcode : OPCODE;
 
 VAR
-cur_instruction_opcode : OPCODE;
+instruction_opcode : OPCODE;
 prev_instruction_opcode : OPCODE;
 
 exception_raised : TRUTH;
@@ -12,25 +11,25 @@ prev_exception_raised : TRUTH;
 cs_selector : BITVEC[16];
 cs_l : BITVEC[1];
 cpl : USER_OR_SYS;
+prev_cpl : USER_OR_SYS;
+prev_prev_cpl : USER_OR_SYS;
 rsp : USER_OR_SYS;
-IA32_EFER_LMA : BITVEC[64];
-IA32_EFER_SCE : BITVEC[64];
+IA32_EFER_LMA : BITVEC[1];
+IA32_EFER_SCE : BITVEC[1];
 IA32_STAR: BITVEC[64];
 
 CONST
-init_cs_l : BITVEC[1];
-init_IA32_EFER_LMA : BITVEC[64];
-init_IA32_EFER_SCE : BITVEC[64];
 init_IA32_STAR : BITVEC[64];
 
 DEFINE
 
 ASSIGN
 
-(* Not sure why, but this is a circular dependancy.
-init[cur_instruction_opcode] := other;
-next[cur_instruction_opcode] := next[instruction_opcode];
-*)
+init[instruction_opcode] := {other, syscall, sysret};
+next[instruction_opcode] := case
+    State.exception_raised : exception;
+    default : {syscall, sysret, other};
+esac;
 
 init[prev_instruction_opcode] := other;
 next[prev_instruction_opcode] := instruction_opcode;
@@ -40,9 +39,9 @@ next[prev_exception_raised] := exception_raised;
 
 init[exception_raised] := false;
 next[exception_raised] := case
-  (instruction_opcode = sysret) : next[sysretInst.exception_raised];
-  (* (instruction_opcode = syscall) : next[syscallInst.exception_raised]; *)
-  (* (instruction_opcode = exception) : next[exceptionInst.exception_raised]; *)
+  next[instruction_opcode] = sysret : next[sysretInst.exception_raised];
+  (* next[instruction_opcode] = syscall : next[syscallInst.exception_raised]; *)
+  (* next[instruction_opcode] = exception : next[exceptionInst.exception_raised]; *)
   default : false;
 esac;
 
@@ -62,6 +61,12 @@ next[cpl] := case
   default : cpl;
 esac;
 
+init[prev_cpl] := {user, sys};
+next[prev_cpl] := cpl;
+
+init[prev_prev_cpl] := {user, sys};
+next[prev_prev_cpl] := prev_cpl;
+
 init[rsp] := {user, sys};
 next[rsp] := case
   (* (instruction_opcode = sysret) : next[sysretInst.rsp]; *)
@@ -70,14 +75,14 @@ next[rsp] := case
   default : rsp;
 esac;
 
-init[cs_l] := init_cs_l;
+init[cs_l] := {0, 1};
 next[cs_l] := cs_l;
 
-init[IA32_EFER_LMA] := init_IA32_EFER_LMA;
+init[IA32_EFER_LMA] := {0, 1};
 next[IA32_EFER_LMA] := IA32_EFER_LMA;
 
-init[IA32_EFER_SCE] := init_IA32_EFER_SCE;
+init[IA32_EFER_SCE] := {0, 1};
 next[IA32_EFER_SCE] := IA32_EFER_SCE;
 
-init[IA32_STAR] := init_IA32_STAR;
+init[IA32_STAR] := init_IA32_STAR;  (* WARNING: This kind of initialization didn't work for IA32_EFER_*, make sure that this can take on values other than 0. *)
 next[IA32_STAR] := IA32_STAR;

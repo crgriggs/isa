@@ -6,20 +6,8 @@ EXTVAR
  * A variable must be declared here with a type and default value in order to
  * control its value at each step. Then, in the EXEC section, set the value for
  * a simulation step like this:
- *
- *     instruction_opcode[0] := syscall;
- *
- * The simulation steps are 0-indexed, so the statement above will set the
- * first simulation step's opcode to syscall.
- *
- * TODO: EXTVARs can't be printed for some reason:
- *       "print(instruction_opcode[0]);" causes a syntax error.
- *       "print(instruction_opcode);" errors with "Uncaught exception: CSExn".
+ *     var[0] := value;
  *)
-instruction_opcode : OPCODE := case
-    State.exception_raised : exception;
-    default : {syscall, sysret, exception, other};
-esac;
 
 STOREVAR
 
@@ -47,7 +35,8 @@ decide(State.cs_selector = sysretInst.cs_selector);
 (* Make sure exception_raised forces the next instruction to "exception" *)
 (*
 simulate(1);
-decide(State.prev_exception_raised => instruction_opcode = exception);
+simulate(1);
+decide(State.prev_exception_raised => State.instruction_opcode = exception);
 *)
 
 (* Privileged exception handlers must run with ring0 stack.
@@ -55,4 +44,13 @@ decide(State.prev_exception_raised => instruction_opcode = exception);
  *)
 simulate(1);
 simulate(1);
-decide(State.prev_instruction_opcode = exception => State.rsp = sys);
+simulate(1);
+decide(
+    (
+     (State.IA32_EFER_LMA = 1) &
+     (State.IA32_EFER_SCE = 1) &
+     (State.cs_l = 1) &
+     (State.prev_prev_cpl = sys) &
+     (State.prev_instruction_opcode = exception))
+    => State.rsp = sys
+);

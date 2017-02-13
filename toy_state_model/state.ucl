@@ -1,7 +1,7 @@
 (*----- header.txt -----*)
 MODEL StateModel
 
-typedef OPCODE : enum{syscall, sysret, exception, other};
+typedef OPCODE : enum{other, exception, syscall, sysret};
 typedef USER_OR_SYS : enum{user, sys};
 
 CONST
@@ -65,8 +65,12 @@ INPUT
 State.cs_selector : BITVEC[16];
 State.IA32_STAR : BITVEC[64];
 State.cpl : USER_OR_SYS;
+State.IA32_EFER_LMA : BITVEC[1];
+State.IA32_EFER_SCE : BITVEC[1];
 
 VAR
+
+rcx_is_canonical : TRUTH;
 
 (* Operands *)
 ret_to_64_bit : TRUTH;  (* 0: encoding 0F07, 1: encoding REX.W+0F07 *)
@@ -86,6 +90,9 @@ ASSIGN
 init[ret_to_64_bit] := {true, false};
 next[ret_to_64_bit] := {true, false};
 
+init[rcx_is_canonical] := {true, false};
+next[rcx_is_canonical] := {true, false};
+
 init[cs_selector] := 0x0000;
 next[cs_selector] := case
 	ret_to_64_bit : cs_selector_64;
@@ -103,7 +110,7 @@ next[exception_raised] := case
 
     (* #GP *)
     State.cpl != sys : true;
-    (* ~is_canonical(State.rcx) : true; *)  (* TODO *)
+    ~rcx_is_canonical : true;
 
     default: false;
 esac;
@@ -112,10 +119,9 @@ esac;
 MODULE State
 
 INPUT
-instruction_opcode : OPCODE;
 
 VAR
-cur_instruction_opcode : OPCODE;
+instruction_opcode : OPCODE;
 prev_instruction_opcode : OPCODE;
 
 exception_raised : TRUTH;
@@ -123,25 +129,25 @@ prev_exception_raised : TRUTH;
 cs_selector : BITVEC[16];
 cs_l : BITVEC[1];
 cpl : USER_OR_SYS;
+prev_cpl : USER_OR_SYS;
+prev_prev_cpl : USER_OR_SYS;
 rsp : USER_OR_SYS;
-IA32_EFER_LMA : BITVEC[64];
-IA32_EFER_SCE : BITVEC[64];
+IA32_EFER_LMA : BITVEC[1];
+IA32_EFER_SCE : BITVEC[1];
 IA32_STAR: BITVEC[64];
 
 CONST
-init_cs_l : BITVEC[1];
-init_IA32_EFER_LMA : BITVEC[64];
-init_IA32_EFER_SCE : BITVEC[64];
 init_IA32_STAR : BITVEC[64];
 
 DEFINE
 
 ASSIGN
 
-(*
-init[cur_instruction_opcode] := other;
-next[cur_instruction_opcode] := next[instruction_opcode];
-*)
+init[instruction_opcode] := {other, syscall, sysret};
+next[instruction_opcode] := case
+    State.exception_raised : exception;
+    default : {syscall, sysret, other};
+esac;
 
 init[prev_instruction_opcode] := other;
 next[prev_instruction_opcode] := instruction_opcode;
@@ -151,9 +157,9 @@ next[prev_exception_raised] := exception_raised;
 
 init[exception_raised] := false;
 next[exception_raised] := case
-  (instruction_opcode = sysret) : next[sysretInst.exception_raised];
-  (* (instruction_opcode = syscall) : next[syscallInst.exception_raised]; *)
-  (* (instruction_opcode = exception) : next[exceptionInst.exception_raised]; *)
+  next[instruction_opcode] = sysret : next[sysretInst.exception_raised];
+  (* next[instruction_opcode] = syscall : next[syscallInst.exception_raised]; *)
+  (* next[instruction_opcode] = exception : next[exceptionInst.exception_raised]; *)
   default : false;
 esac;
 
@@ -173,6 +179,12 @@ next[cpl] := case
   default : cpl;
 esac;
 
+init[prev_cpl] := {user, sys};
+next[prev_cpl] := cpl;
+
+init[prev_prev_cpl] := {user, sys};
+next[prev_prev_cpl] := prev_cpl;
+
 init[rsp] := {user, sys};
 next[rsp] := case
   (* (instruction_opcode = sysret) : next[sysretInst.rsp]; *)
@@ -181,16 +193,16 @@ next[rsp] := case
   default : rsp;
 esac;
 
-init[cs_l] := init_cs_l;
+init[cs_l] := {0, 1};
 next[cs_l] := cs_l;
 
-init[IA32_EFER_LMA] := init_IA32_EFER_LMA;
+init[IA32_EFER_LMA] := {0, 1};
 next[IA32_EFER_LMA] := IA32_EFER_LMA;
 
-init[IA32_EFER_SCE] := init_IA32_EFER_SCE;
+init[IA32_EFER_SCE] := {0, 1};
 next[IA32_EFER_SCE] := IA32_EFER_SCE;
 
-init[IA32_STAR] := init_IA32_STAR;
+init[IA32_STAR] := init_IA32_STAR;  (* WARNING: This kind of initialization didn't work for IA32_EFER_*, make sure that this can take on values other than 0. *)
 next[IA32_STAR] := IA32_STAR;
 
 (*----- control.txt -----*)
@@ -202,23 +214,8 @@ EXTVAR
  * A variable must be declared here with a type and default value in order to
  * control its value at each step. Then, in the EXEC section, set the value for
  * a simulation step like this:
- *
- *     instruction_opcode[0] := syscall;
- *
- * The simulation steps are 0-indexed, so the statement above will set the
- * first simulation step's opcode to syscall.
- *
- * TODO: EXTVARs can't be printed for some reason:
- *       "print(instruction_opcode[0]);" causes a syntax error.
- *       "print(instruction_opcode);" errors with "Uncaught exception: CSExn".
+ *     var[0] := value;
  *)
-instruction_opcode : OPCODE := case
-    State.exception_raised : exception;
-    default : {syscall, sysret, exception, other};
-esac;
-(*
-instruction_opcode : OPCODE := {syscall, sysret, exception, other};
-*)
 
 STOREVAR
 
@@ -246,7 +243,8 @@ decide(State.cs_selector = sysretInst.cs_selector);
 (* Make sure exception_raised forces the next instruction to "exception" *)
 (*
 simulate(1);
-decide(State.prev_exception_raised => instruction_opcode = exception);
+simulate(1);
+decide(State.prev_exception_raised => State.instruction_opcode = exception);
 *)
 
 (* Privileged exception handlers must run with ring0 stack.
@@ -254,6 +252,14 @@ decide(State.prev_exception_raised => instruction_opcode = exception);
  *)
 simulate(1);
 simulate(1);
-decide(State.prev_instruction_opcode = exception => State.rsp = sys);
-(* decide(prev_instruction_opcode = exception => State.ss = 0); *)
+simulate(1);
+decide(
+    (
+     (State.IA32_EFER_LMA = 1) &
+     (State.IA32_EFER_SCE = 1) &
+     (State.cs_l = 1) &
+     (State.prev_prev_cpl = sys) &
+     (State.prev_instruction_opcode = exception))
+    => State.rsp = sys
+);
 
