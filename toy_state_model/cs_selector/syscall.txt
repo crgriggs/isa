@@ -5,10 +5,13 @@ State.cs_l : BITVEC[1];
 State.cs_selector : BITVEC[16];
 State.IA32_EFER_LMA : BITVEC[64];
 State.IA32_EFER_SCE : BITVEC[64];
+State.IA32_FMASK_IF : BITVEC[64];
 State.IA32_STAR : BITVEC[64];
+State.rflags_if : BITVEC[1];
 
 VAR
 cs_selector : BITVEC[16];
+rflags_if : BITVEC[1];
 
 CONST
 
@@ -23,3 +26,6 @@ next[cs_selector] := case
     State.IA32_EFER_SCE != 1 : State.cs_selector;
     default : (State.IA32_STAR # [47:32]) && (0xFFFC);
 esac;
+
+init[rflags_if] := {0, 1};
+next[rflags_if] := State.rflags_if && !!State.IA32_FMASK_IF;
